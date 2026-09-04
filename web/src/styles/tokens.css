@@ -1,0 +1,84 @@
+:root {
+  /* canvas & ink */
+  --canvas: #fdfcfc;
+  --ink: #201d1d;
+  --charcoal: #302c2c;
+  --body: #424245;
+  --mute: #646262;
+  --stone: #6e6e73;
+  --ash: #9a9898;
+
+  /* surfaces */
+  --surface-soft: #f8f7f7;
+  --surface-card: #f1eeee;
+  --surface-dark: #201d1d;
+  --surface-dark-elevated: #302c2c;
+
+  /* hairlines */
+  --hairline: rgba(15, 0, 0, 0.12);
+  --hairline-strong: #646262;
+
+  /* semantic */
+  --accent: #007aff;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff3b30;
+
+  /* radii */
+  --radius-interactive: 4px;
+  --radius-container: 0px;
+
+  /* spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* type */
+  --font-mono:
+    'JetBrains Mono', 'IBM Plex Mono', 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
+}
+
+/* Dark palette — a continuation of the same system, not a generic invert. Note
+ * --surface-dark / --surface-dark-elevated are deliberately NOT redefined here:
+ * the terminal log and image-review surfaces are meant to read as "always dark"
+ * regardless of the shell theme, so they keep their :root value in both modes. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --canvas: #1c1a1a;
+    --ink: #f5f3f2;
+    --charcoal: #3a3636;
+    --body: #c7c4c3;
+    --mute: #918f8e;
+    --stone: #86838f;
+    --ash: #5c5a59;
+
+    --surface-soft: #242121;
+    --surface-card: #2b2828;
+
+    --hairline: rgba(255, 255, 255, 0.14);
+    --hairline-strong: #5c5a59;
+  }
+}
+
+:root[data-theme='dark'] {
+  --canvas: #1c1a1a;
+  --ink: #f5f3f2;
+  --charcoal: #3a3636;
+  --body: #c7c4c3;
+  --mute: #918f8e;
+  --stone: #86838f;
+  --ash: #5c5a59;
+
+  --surface-soft: #242121;
+  --surface-card: #2b2828;
+
+  --hairline: rgba(255, 255, 255, 0.14);
+  --hairline-strong: #5c5a59;
+}

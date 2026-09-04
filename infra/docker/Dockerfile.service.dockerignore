@@ -1,0 +1,35 @@
+# Dockerfile-specific ignore rules apply only when Docker builds
+# Dockerfile.service from the repository-root context. They keep local state,
+# credentials, and scientific assets out of the service build context without
+# changing the existing training image's required root-context inputs.
+.git/
+.github/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Never send local configuration or credentials to the Docker daemon.
+.env
+.env.*
+secrets/
+*.pem
+*.key
+
+# These are not service image inputs.
+data/
+model/
+kernels/
+runs/
+artifacts/
+outputs/
+scratch/
+tmp/
+benchmarks/
+docs/
+tests/
+train/
+web/

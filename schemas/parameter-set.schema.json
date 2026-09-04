@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/parameter-set.schema.json",
+  "title": "Scientific parameter set",
+  "description": "Versioned non-secret scientific parameters. Unknown scientific-parameter fields are rejected rather than ignored.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "parameter_set_id", "version", "parameters"],
+  "properties": {
+    "schema_version": {"type": "string", "minLength": 1},
+    "parameter_set_id": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "parameters": {"$ref": "#/$defs/parameters"},
+    "created_utc": {"type": "string", "format": "date-time"},
+    "description": {"type": "string"}
+  },
+  "$defs": {
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "matching": {"$ref": "#/$defs/matching_parameters"},
+        "selection": {"$ref": "#/$defs/selection_parameters"},
+        "refinement": {"$ref": "#/$defs/refinement_parameters"}
+      }
+    },
+    "matching_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "window_size_px": {"type": "integer", "minimum": 3},
+        "minimum_score": {"type": "number", "minimum": -1, "maximum": 1},
+        "search_radius_px": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "selection_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "minimum_separation_px": {"type": "number", "exclusiveMinimum": 0},
+        "minimum_coverage_fraction": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "refinement_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "maximum_iterations": {"type": "integer", "minimum": 1},
+        "convergence_tolerance_px": {"type": "number", "exclusiveMinimum": 0}
+      }
+    }
+  }
+}

@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/verdict.schema.json",
+  "title": "Computed verdict and effective disposition",
+  "description": "The immutable computed verdict accept, review, or reject with per-gate observed value, threshold, applicability, pass state, and evidence source. Implementation plan sections 8 and 10.",
+  "$defs": {
+    "GateKind": {
+      "description": "How a failing or inapplicable-but-required gate affects the verdict.",
+      "enum": [
+        "hard",
+        "soft"
+      ],
+      "title": "GateKind",
+      "type": "string"
+    },
+    "GateResult": {
+      "additionalProperties": false,
+      "description": "Per-gate observed value, threshold, applicability, pass state, and\nevidence source (plan section 6.6).",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "metric_name": {
+          "title": "Metric Name",
+          "type": "string"
+        },
+        "observed_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Observed Value"
+        },
+        "threshold": {
+          "title": "Threshold",
+          "type": "number"
+        },
+        "comparison": {
+          "title": "Comparison",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/GateKind"
+        },
+        "applicable": {
+          "title": "Applicable",
+          "type": "boolean"
+        },
+        "applicability_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Applicability Reason"
+        },
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Passed"
+        },
+        "evidence_source": {
+          "title": "Evidence Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "metric_name",
+        "observed_value",
+        "threshold",
+        "comparison",
+        "kind",
+        "applicable",
+        "evidence_source"
+      ],
+      "title": "GateResult",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "verdict": {
+      "enum": [
+        "accept",
+        "review",
+        "reject"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "route_id": {
+      "title": "Route Id",
+      "type": "string"
+    },
+    "gate_results": {
+      "items": {
+        "$ref": "#/$defs/GateResult"
+      },
+      "title": "Gate Results",
+      "type": "array"
+    },
+    "computed_utc": {
+      "format": "date-time",
+      "title": "Computed Utc",
+      "type": "string"
+    },
+    "reason": {
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "verdict",
+    "route_id",
+    "gate_results",
+    "computed_utc",
+    "reason"
+  ],
+  "type": "object"
+}

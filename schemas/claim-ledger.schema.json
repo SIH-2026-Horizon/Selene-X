@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/claim-ledger.schema.json",
+  "title": "Public quantitative-claim ledger",
+  "description": "Every public quantitative claim must name an immutable content-addressed benchmark report. An empty ledger is valid and means that no public quantitative claim is authorized.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "ledger_id", "status", "claims"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "ledger_id": {"type": "string", "minLength": 1},
+    "status": {"type": "string", "enum": ["no_public_quantitative_claims", "active"]},
+    "claims": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/claim"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "no_public_quantitative_claims"}}, "required": ["status"]},
+      "then": {"properties": {"claims": {"maxItems": 0}}}
+    }
+  ],
+  "$defs": {
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claim_id", "statement", "value", "unit", "run_report_id", "checkpoint_id", "metric_reference", "scope", "limitations"],
+      "properties": {
+        "claim_id": {"type": "string", "minLength": 1},
+        "statement": {"type": "string", "minLength": 1},
+        "value": {"type": "number"},
+        "unit": {"type": "string", "minLength": 1},
+        "run_report_id": {"type": "string", "pattern": "^brr-sha256-[0-9a-f]{64}$"},
+        "checkpoint_id": {"type": "string", "pattern": "^icp-sha256-[0-9a-f]{64}$"},
+        "metric_reference": {"type": "object", "additionalProperties": false, "required": ["scene_product_id", "metric_key", "value", "unit"], "properties": {"scene_product_id": {"type": "string", "minLength": 1}, "metric_key": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$"}, "value": {"type": "number"}, "unit": {"type": "string", "minLength": 1}}},
+        "scope": {"type": "string", "minLength": 1},
+        "limitations": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

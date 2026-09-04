@@ -1,0 +1,13 @@
+{
+  "batch_size": 4,
+  "dataset": {
+    "source": "hf://YOUR_HF_USERNAME/selene-xr-render-residual-prior",
+    "split": "train"
+  },
+  "device": "auto",
+  "epochs": 30,
+  "learning_rate": 0.001,
+  "model_name": "render_residual_prior",
+  "model_root": "model",
+  "seed": 20260317
+}

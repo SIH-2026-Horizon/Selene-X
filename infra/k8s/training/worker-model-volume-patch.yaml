@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: selene-worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: worker
+          env:
+            - name: SXR_MODEL_ROOT
+              value: /models
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: selene-models

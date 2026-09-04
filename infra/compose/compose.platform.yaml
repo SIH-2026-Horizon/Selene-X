@@ -1,0 +1,121 @@
+# Local, single-user platform foundation. Invoke every command with
+# --env-file infra/compose/.env.platform and --profile platform; the template
+# is .env.platform.example. See docs/runbooks/local-platform.md before use.
+name: selene-xr-platform
+
+services:
+  postgis:
+    profiles: ["platform"]
+    image: postgis/postgis:16-3.5
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set in the local platform env file}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER must be set in the local platform env file}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in the local platform env file}
+    volumes:
+      - selene-postgis-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      # pg_isready is supplied by the official PostgreSQL/PostGIS image.
+      test: ["CMD-SHELL", "pg_isready --host=127.0.0.1 --username=\"$$POSTGRES_USER\" --dbname=\"$$POSTGRES_DB\" --quiet"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  minio:
+    profiles: ["platform"]
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set in the local platform env file}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in the local platform env file}
+    volumes:
+      - selene-minio-data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      # ``mc`` is the supported in-image MinIO readiness client; do not assume
+      # curl or wget is present in this minimal image.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  migrate:
+    profiles: ["platform"]
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.service
+    image: selene-xr-service:local
+    command: ["-m", "alembic", "-c", "packages/selene_service/alembic.ini", "upgrade", "head"]
+    environment:
+      SELENE_SERVICE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER must be set in the local platform env file}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in the local platform env file}@postgis:5432/${POSTGRES_DB:?POSTGRES_DB must be set in the local platform env file}
+    depends_on:
+      postgis:
+        condition: service_healthy
+    restart: "no"
+
+  service:
+    profiles: ["platform"]
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.service
+    image: selene-xr-service:local
+    environment:
+      # Docker needs a private container-network listener. Nginx is the only
+      # API ingress; browser requests authenticate with server-side sessions.
+      SELENE_SERVICE_AUTHENTICATION_MODE: session
+      SELENE_SERVICE_BIND_HOST: 0.0.0.0
+      SELENE_SERVICE_PORT: "8000"
+      SELENE_SERVICE_ENVIRONMENT: development
+      SELENE_SERVICE_BOOTSTRAP_ADMIN_USERNAME: ${SELENE_BOOTSTRAP_ADMIN_USERNAME:?SELENE_BOOTSTRAP_ADMIN_USERNAME must be set in the local platform env file}
+      SELENE_SERVICE_BOOTSTRAP_ADMIN_PASSWORD: ${SELENE_BOOTSTRAP_ADMIN_PASSWORD:?SELENE_BOOTSTRAP_ADMIN_PASSWORD must be set in the local platform env file}
+      SELENE_SERVICE_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:?POSTGRES_USER must be set in the local platform env file}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in the local platform env file}@postgis:5432/${POSTGRES_DB:?POSTGRES_DB must be set in the local platform env file}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # The Python runtime is guaranteed in this image, unlike curl or wget.
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; response = urlopen('http://127.0.0.1:8000/healthz', timeout=2); assert response.status == 200"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  web:
+    profiles: ["platform"]
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        # Public, opt-in browser artifact origins; blank disables all external
+        # artifact rendering. It is not an API URL or credential.
+        VITE_SELENE_ARTIFACT_HOSTS: ${VITE_SELENE_ARTIFACT_HOSTS}
+    image: selene-xr-web:local
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      service:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # Exercise both the static SPA and its same-origin readiness proxy.
+      # BusyBox wget is provided by the pinned nginx Alpine image.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/ && wget -q -O /dev/null http://127.0.0.1:8080/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  selene-postgis-data:
+    name: ${SELENE_PLATFORM_POSTGIS_VOLUME_NAME:?SELENE_PLATFORM_POSTGIS_VOLUME_NAME must be set in the local platform env file}
+  selene-minio-data:
+    name: ${SELENE_PLATFORM_MINIO_VOLUME_NAME:?SELENE_PLATFORM_MINIO_VOLUME_NAME must be set in the local platform env file}

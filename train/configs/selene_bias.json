@@ -1,0 +1,21 @@
+{
+  "dataset": {
+    "source": "hf://YOUR_HF_USERNAME/selene-xr-bias",
+    "split": "train"
+  },
+  "feature_names": [
+    "gradient_energy_ratio",
+    "spectral_centroid",
+    "estimated_phase_y",
+    "estimated_phase_x",
+    "resample_kernel_id",
+    "estimator_id"
+  ],
+  "l2_regularization": 0.001,
+  "learning_rate": 0.05,
+  "max_iter": 300,
+  "max_leaf_nodes": 31,
+  "model_name": "selene_bias",
+  "model_root": "model",
+  "seed": 20260317
+}

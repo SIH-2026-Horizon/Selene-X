@@ -1,0 +1,6 @@
+{
+  "iirs_bandweights": "hf://YOUR_HF_USERNAME/selene-xr-iirs-bandweights",
+  "render_residual_prior": "hf://YOUR_HF_USERNAME/selene-xr-render-residual-prior",
+  "selene_bias": "hf://YOUR_HF_USERNAME/selene-xr-bias",
+  "selene_matcher": "hf://YOUR_HF_USERNAME/selene-xr-matcher"
+}

@@ -1,0 +1,534 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/correspondence-record.schema.json",
+  "title": "Correspondence record",
+  "description": "The canonical match record: identity, position, evidence, geometry, refinement, uncertainty, quality, coverage, and provenance groups. Training points, fitting inliers, and withheld check points must be disjoint and explicitly flagged. Implementation plan section 6.4.",
+  "$defs": {
+    "Covariance2D": {
+      "description": "A two-dimensional positional covariance.\n\nNon-positive-definite covariance is rejected at construction (WP-08 task 5).\nA covariance that is merely *produced* is not calibrated; whether it has been\nvalidated against truth is tracked separately on the correspondence record,\nbecause R-008 is that a mathematically well-formed covariance can still be\nsystematically wrong.\n\nThe components are named ``xx``, ``xy``, and ``yy`` without a unit suffix\nbecause the ``units`` field carries the unit for all three; suffixing each\ncomponent would duplicate it and allow the two to disagree.",
+      "properties": {
+        "xx": {
+          "title": "Xx",
+          "type": "number"
+        },
+        "xy": {
+          "title": "Xy",
+          "type": "number"
+        },
+        "yy": {
+          "title": "Yy",
+          "type": "number"
+        },
+        "frame": {
+          "$ref": "#/$defs/CovarianceFrame"
+        },
+        "units": {
+          "title": "Units",
+          "type": "string"
+        }
+      },
+      "required": [
+        "xx",
+        "xy",
+        "yy",
+        "frame",
+        "units"
+      ],
+      "title": "Covariance2D",
+      "type": "object"
+    },
+    "CovarianceFrame": {
+      "description": "The frame a :class:`Covariance2D` is expressed in.",
+      "enum": [
+        "source_pixel",
+        "reference_pixel",
+        "map"
+      ],
+      "title": "CovarianceFrame",
+      "type": "string"
+    },
+    "LocalWarpJacobian": {
+      "description": "The local linearisation of the source-to-reference mapping.\n\nUsed to convert a residual or a covariance between the source and reference\nframes. A single scene-wide pixel scale is never substituted for this: local\nGSD varies with altitude, emission angle, and terrain across one pushbroom\nscene (WP-08 task 11).\n\nEntries are partial derivatives of reference pixel coordinates with respect\nto source pixel coordinates.",
+      "properties": {
+        "d_ref_line_d_src_line": {
+          "title": "D Ref Line D Src Line",
+          "type": "number"
+        },
+        "d_ref_line_d_src_sample": {
+          "title": "D Ref Line D Src Sample",
+          "type": "number"
+        },
+        "d_ref_sample_d_src_line": {
+          "title": "D Ref Sample D Src Line",
+          "type": "number"
+        },
+        "d_ref_sample_d_src_sample": {
+          "title": "D Ref Sample D Src Sample",
+          "type": "number"
+        }
+      },
+      "required": [
+        "d_ref_line_d_src_line",
+        "d_ref_line_d_src_sample",
+        "d_ref_sample_d_src_line",
+        "d_ref_sample_d_src_sample"
+      ],
+      "title": "LocalWarpJacobian",
+      "type": "object"
+    },
+    "MapCoordinate": {
+      "description": "A projected coordinate, carrying the CRS it is meaningful in.\n\nThe CRS travels with the coordinate because a bare easting and northing is\nindistinguishable between projections and between bodies. R-010 is the risk\nthis guards against.",
+      "properties": {
+        "x_m": {
+          "title": "X M",
+          "type": "number"
+        },
+        "y_m": {
+          "title": "Y M",
+          "type": "number"
+        },
+        "crs_wkt": {
+          "title": "Crs Wkt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "x_m",
+        "y_m",
+        "crs_wkt"
+      ],
+      "title": "MapCoordinate",
+      "type": "object"
+    },
+    "NmsStatus": {
+      "description": "Outcome of non-maximum suppression against nearby candidates.",
+      "enum": [
+        "survived",
+        "suppressed",
+        "not_evaluated"
+      ],
+      "title": "NmsStatus",
+      "type": "string"
+    },
+    "PointRole": {
+      "description": "The single role a correspondence has been assigned, if any.\n\nDeliberately one enum field rather than three independent booleans\n(``is_training``, ``is_fitting_inlier``, ``is_withheld``). The plan\nrequires that training points, fitting inliers, and withheld check points\nbe disjoint; three booleans can disagree with each other (a bug, not a\nscientific finding), while a single-valued enum makes disjointness a\nstructural guarantee \u2014 a record can only ever have *one* ``point_role``.\n``TRAINING``, ``FITTING_INLIER``, and ``WITHHELD_CHECK_POINT`` are\ntherefore mutually exclusive by construction, which is what satisfies the\nplan's \"disjoint and explicitly flagged\" requirement.",
+      "enum": [
+        "candidate",
+        "training",
+        "fitting_inlier",
+        "withheld_check_point",
+        "rejected"
+      ],
+      "title": "PointRole",
+      "type": "string"
+    },
+    "ReferencePixel": {
+      "description": "A position in the reference (LRO or SELENE) image, internal convention.",
+      "properties": {
+        "line": {
+          "title": "Line",
+          "type": "number"
+        },
+        "sample": {
+          "title": "Sample",
+          "type": "number"
+        }
+      },
+      "required": [
+        "line",
+        "sample"
+      ],
+      "title": "ReferencePixel",
+      "type": "object"
+    },
+    "SourcePixel": {
+      "description": "A position in the source (Chandrayaan-2) image, internal convention.\n\nSub-pixel correspondence accuracy is evaluated in this frame (ADR-0003).",
+      "properties": {
+        "line": {
+          "title": "Line",
+          "type": "number"
+        },
+        "sample": {
+          "title": "Sample",
+          "type": "number"
+        }
+      },
+      "required": [
+        "line",
+        "sample"
+      ],
+      "title": "SourcePixel",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "match_id": {
+      "description": "Caller-supplied identity, or an auto-generated UUID4 when the caller has no natural identity for this record. Either way, unique per record within a job.",
+      "title": "Match Id",
+      "type": "string"
+    },
+    "job_id": {
+      "title": "Job Id",
+      "type": "string"
+    },
+    "algorithm": {
+      "title": "Algorithm",
+      "type": "string"
+    },
+    "algorithm_version": {
+      "title": "Algorithm Version",
+      "type": "string"
+    },
+    "tile_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Always None in this build: no tiling infrastructure exists yet (WP-03). Kept for forward compatibility with tiled pyramid-level matching (WP-04 task 6).",
+      "title": "Tile Id"
+    },
+    "pyramid_level": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Always None in this build: no pyramid infrastructure exists yet (WP-03). Kept for forward compatibility.",
+      "title": "Pyramid Level"
+    },
+    "selection_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Selection Reason"
+    },
+    "source_pixel": {
+      "$ref": "#/$defs/SourcePixel"
+    },
+    "reference_pixel": {
+      "$ref": "#/$defs/ReferencePixel"
+    },
+    "ground_coordinate": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MapCoordinate"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional ground coordinate and frame. MapCoordinate carries its own crs_wkt, so one field covers both the coordinate and the frame it is meaningful in."
+    },
+    "raw_score": {
+      "title": "Raw Score",
+      "type": "number"
+    },
+    "calibrated_confidence": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Calibrated Confidence"
+    },
+    "descriptor_channel_agreement": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Descriptor Channel Agreement"
+    },
+    "forward_backward_error_px": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Forward Backward Error Px"
+    },
+    "prior_displacement_px": {
+      "anyOf": [
+        {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "(dy, dx) \u2014 line/sample = row/column = y/x order, matching this project's established internal pixel convention (selene_core.types).",
+      "title": "Prior Displacement Px"
+    },
+    "residual_from_prior_px": {
+      "anyOf": [
+        {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "(dy, dx), same order as prior_displacement_px.",
+      "title": "Residual From Prior Px"
+    },
+    "robust_model_residual_px": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Robust Model Residual Px"
+    },
+    "local_warp_jacobian": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LocalWarpJacobian"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "coarse_location": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SourcePixel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "refined_location": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SourcePixel"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "estimator_identities": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Estimator Identities",
+      "type": "array"
+    },
+    "estimator_disagreement_px": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Estimator Disagreement Px"
+    },
+    "covariance": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Covariance2D"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "covariance_method": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Covariance Method"
+    },
+    "covariance_calibrated": {
+      "default": false,
+      "description": "False unless the covariance has actually been validated against truth. An uncalibrated covariance claiming calibration would be a fabricated confidence claim.",
+      "title": "Covariance Calibrated",
+      "type": "boolean"
+    },
+    "is_candidate": {
+      "default": false,
+      "title": "Is Candidate",
+      "type": "boolean"
+    },
+    "is_inlier": {
+      "default": false,
+      "title": "Is Inlier",
+      "type": "boolean"
+    },
+    "point_role": {
+      "$ref": "#/$defs/PointRole",
+      "default": "candidate"
+    },
+    "rejection_reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rejection Reason"
+    },
+    "nms_status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/NmsStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "eligible_cell_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Eligible Cell Id"
+    },
+    "grid_level": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Grid Level"
+    },
+    "selected_for_coverage": {
+      "default": false,
+      "title": "Selected For Coverage",
+      "type": "boolean"
+    },
+    "coverage_selection_rationale": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Coverage Selection Rationale"
+    },
+    "input_digest": {
+      "title": "Input Digest",
+      "type": "string"
+    },
+    "reference_digest": {
+      "title": "Reference Digest",
+      "type": "string"
+    },
+    "parameter_set_digest": {
+      "title": "Parameter Set Digest",
+      "type": "string"
+    },
+    "code_revision": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Code Revision"
+    }
+  },
+  "required": [
+    "job_id",
+    "algorithm",
+    "algorithm_version",
+    "source_pixel",
+    "reference_pixel",
+    "raw_score",
+    "input_digest",
+    "reference_digest",
+    "parameter_set_digest"
+  ],
+  "type": "object"
+}

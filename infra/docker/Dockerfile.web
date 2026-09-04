@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1
+#
+# Locked, static SELENE-XR web-console build. The browser always talks to the
+# packaged service through the same-origin reverse proxy; it never needs a
+# CORS-enabled API URL in this local platform image.
+ARG NODE_IMAGE=node:22.22.2-alpine
+ARG NGINX_IMAGE=nginx:1.27.5-alpine
+
+FROM ${NODE_IMAGE} AS builder
+
+WORKDIR /app
+
+COPY web/package.json web/pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
+
+COPY web/ ./
+
+# Artifact storage is opt-in. This is a list of public HTTPS host names, not a
+# credential. The built app otherwise has no permitted external artifact host.
+ARG VITE_SELENE_ARTIFACT_HOSTS=""
+ENV VITE_SELENE_API_BASE_URL=/api/v1 \
+    VITE_SELENE_ARTIFACT_HOSTS=${VITE_SELENE_ARTIFACT_HOSTS}
+RUN pnpm build
+
+# Build the CSP from the same explicitly configured host list used by the
+# client. The Node program accepts DNS host names only, so a build argument
+# cannot inject an nginx directive or widen the policy with a URL/wildcard.
+COPY infra/nginx/security-headers.conf /tmp/security-headers.conf
+RUN node --input-type=module <<'EOF'
+import { readFileSync, writeFileSync } from 'node:fs'
+
+const rawHosts = (process.env.VITE_SELENE_ARTIFACT_HOSTS ?? '').split(',')
+const hostPattern = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i
+const hosts = [...new Set(rawHosts.map((host) => host.trim().toLowerCase()).filter(Boolean))]
+if (hosts.some((host) => !hostPattern.test(host))) {
+  throw new Error('VITE_SELENE_ARTIFACT_HOSTS must contain comma-separated DNS host names only')
+}
+const artifactSources = hosts.map((host) => `https://${host}`).join(' ')
+const template = readFileSync('/tmp/security-headers.conf', 'utf8')
+writeFileSync('/tmp/rendered-security-headers.conf', template.replace('__SELENE_ARTIFACT_SOURCES__', artifactSources))
+EOF
+
+FROM ${NGINX_IMAGE} AS runtime
+
+COPY infra/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY infra/nginx/selene-web.conf.template /usr/share/selene-nginx/selene-web.conf.template
+COPY infra/nginx/proxy-headers.conf /etc/nginx/conf.d/proxy-headers.conf
+COPY --from=builder /tmp/rendered-security-headers.conf /etc/nginx/conf.d/security-headers.conf
+COPY --chmod=0555 infra/nginx/selene-web-entrypoint.sh /usr/local/bin/selene-web-entrypoint
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Port 8080 is unprivileged; Compose adds a writable tmpfs and runs this
+# static-only server read-only.
+USER nginx
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/selene-web-entrypoint"]

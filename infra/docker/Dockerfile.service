@@ -1,0 +1,54 @@
+# syntax=docker/dockerfile:1
+#
+# Runtime-only SELENE-XR service image. The builder is deliberately limited to
+# the locked workspace metadata and packages; data, models, secrets, and local
+# environment files are excluded by Dockerfile.service.dockerignore.
+ARG BASE_IMAGE=python:3.12-slim
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.10.5
+FROM ${UV_IMAGE} AS uv
+
+FROM ${BASE_IMAGE} AS builder
+
+WORKDIR /app
+
+COPY --from=uv /uv /usr/local/bin/uv
+COPY LICENSE pyproject.toml uv.lock ./
+COPY packages/selene_core packages/selene_core
+COPY packages/selene_client packages/selene_client
+COPY packages/selene_service packages/selene_service
+COPY packages/selene_worker packages/selene_worker
+
+# Copy every declared workspace member into this builder so uv can validate the
+# exact committed workspace lock. The package selector still installs only the
+# service and its runtime dependency closure, never client/worker dependencies.
+# Installing workspace projects non-editably makes the runtime independent of
+# uv and its package cache.
+RUN uv sync --locked --no-dev --no-editable --package selene-service \
+    && rm -rf /root/.cache/uv
+
+FROM ${BASE_IMAGE} AS runtime
+
+ENV PATH="/app/.venv/bin:${PATH}" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# A numeric identity works with rootless/container runtimes without relying on
+# a host-specific account name.
+RUN groupadd --gid 10001 selene \
+    && useradd --create-home --home-dir /home/selene --uid 10001 --gid 10001 \
+        --shell /usr/sbin/nologin selene
+
+COPY --from=builder --chown=10001:10001 /app/.venv /app/.venv
+# Alembic resolves its migration directory relative to this checked-in config.
+# This is application source only; no stateful artifacts are copied into the image.
+COPY --from=builder --chown=10001:10001 /app/packages/selene_service \
+    /app/packages/selene_service
+
+USER 10001:10001
+
+# Keep Python as the fixed entrypoint so Compose can replace only the command
+# with ``-m alembic ...`` for the migration job.
+ENTRYPOINT ["python"]
+CMD ["-m", "selene_service"]

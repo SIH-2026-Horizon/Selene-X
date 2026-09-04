@@ -1,0 +1,92 @@
+# Package import direction enforcement (WP-01 task 3, ADR-005).
+#
+# The governing rule from section 5.1 is that `selene_core` has no dependency on
+# HTTP, ORM, queues, Redis, object-store SDKs, or UI code, and that the API calls
+# the same core functions instead of holding a second scientific implementation.
+
+[importlinter]
+include_external_packages = True
+root_packages =
+    selene_core
+    selene_client
+    selene_service
+    selene_worker
+
+[importlinter:contract:core-is-independent]
+name = selene_core does not depend on the other SELENE-XR packages
+type = forbidden
+source_modules =
+    selene_core
+forbidden_modules =
+    selene_client
+    selene_service
+    selene_worker
+
+[importlinter:contract:core-has-no-infrastructure]
+name = selene_core does not import service, transport, or persistence infrastructure
+type = forbidden
+source_modules =
+    selene_core
+forbidden_modules =
+    fastapi
+    starlette
+    uvicorn
+    sqlalchemy
+    alembic
+    psycopg
+    asyncpg
+    redis
+    celery
+    kombu
+    boto3
+    botocore
+    httpx
+    requests
+    aiohttp
+
+[importlinter:contract:client-does-not-import-service]
+name = selene_client does not import the service or worker packages
+type = forbidden
+source_modules =
+    selene_client
+forbidden_modules =
+    selene_service
+    selene_worker
+
+[importlinter:contract:worker-does-not-import-service]
+name = selene_worker does not import the service package
+type = forbidden
+source_modules =
+    selene_worker
+forbidden_modules =
+    selene_service
+
+[importlinter:contract:service-and-worker-use-core-public-api]
+name = selene_service and selene_worker only import selene_core's documented public API
+type = forbidden
+source_modules =
+    selene_service
+    selene_worker
+forbidden_modules =
+    selene_core.**
+
+[importlinter:contract:core-layers]
+name = selene_core stage layering follows the pipeline dependency order
+type = layers
+layers =
+    selene_core.pipeline
+    selene_core.products
+    selene_core.metrics
+    selene_core.adjust
+    selene_core.refine
+    selene_core.select
+    selene_core.match
+    selene_core.features
+    selene_core.preprocess
+    selene_core.reference
+    selene_core.geometry
+    selene_core.ingest
+    selene_core.types
+    selene_core.hashing
+    selene_core.errors
+    selene_core.contracts

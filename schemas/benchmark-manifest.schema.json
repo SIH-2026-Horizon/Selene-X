@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/benchmark-manifest.schema.json",
+  "title": "Benchmark manifest",
+  "description": "Product identifiers, source URLs, credentials required, licences and access conditions, byte sizes, checksums, labels, kernel sets, calibration files, reference versions, split roles, stress bins, and control uncertainty. Implementation plan WP-00 task 1.",
+  "type": "object",
+  "required": ["schema_version", "manifest_id", "interim", "created_utc", "products"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "minLength": 1 },
+    "manifest_id": { "type": "string", "minLength": 1 },
+    "interim": {
+      "type": "boolean",
+      "description": "Must be true until D-001 (official SIH product IDs and split) is resolved. A manifest that claims interim: false is asserting an authority this project does not yet have."
+    },
+    "created_utc": { "type": "string", "format": "date-time" },
+    "notes": { "type": "string" },
+    "products": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/product" }
+    }
+  },
+  "$defs": {
+    "file_entry": {
+      "type": "object",
+      "required": ["relative_path", "sha256", "size_bytes", "media_type", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "relative_path": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "size_bytes": { "type": "integer", "minimum": 0 },
+        "media_type": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["data", "label", "kernel", "calibration", "auxiliary"] }
+      }
+    },
+    "product": {
+      "type": "object",
+      "required": [
+        "product_id", "mission", "payload_family", "role", "split_role",
+        "files", "source_url", "license", "credentials_required"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "product_id": { "type": "string", "minLength": 1 },
+        "mission": { "type": "string", "minLength": 1 },
+        "payload_family": {
+          "type": "string",
+          "enum": ["OHRC", "TMC-2", "IIRS", "LROC_NAC", "SELENE_TC", "SLDEM", "LOLA", "REGIONAL_NAC_DTM", "CONTROLLED_MOSAIC", "OTHER"]
+        },
+        "role": { "type": "string", "enum": ["source", "image_reference", "terrain", "control"] },
+        "product_level": { "type": ["string", "null"] },
+        "source_url": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "minLength": 1 },
+        "access_conditions": { "type": ["string", "null"] },
+        "credentials_required": { "type": "array", "items": { "type": "string" } },
+        "files": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/file_entry" } },
+        "reference_version": { "type": ["string", "null"] },
+        "split_role": {
+          "type": "string",
+          "enum": ["train_development", "validation", "held_out_test", "not_applicable"]
+        },
+        "terrain_group": {
+          "type": ["string", "null"],
+          "description": "Products sharing a terrain_group must stay in one split (plan WP-00 task 4)."
+        },
+        "stress_bins": { "$ref": "#/$defs/stress_bins" },
+        "control_uncertainty_m": { "type": ["number", "null"] },
+        "control_uncertainty_reason": {
+          "type": ["string", "null"],
+          "description": "A metric that cannot be computed is null with a reason, never zero, never silently omitted (plan section 6.6). If control_uncertainty_m is null, this field must be a non-empty string explaining why."
+        },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      },
+      "if": {
+        "properties": {
+          "control_uncertainty_m": { "type": "null" }
+        },
+        "required": ["control_uncertainty_m"]
+      },
+      "then": {
+        "properties": {
+          "control_uncertainty_reason": { "type": "string", "minLength": 1 }
+        },
+        "required": ["control_uncertainty_reason"]
+      }
+    },
+    "stress_bins": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "solar_angle_difference_deg": { "type": ["number", "null"] },
+        "view_emission_angle_deg": { "type": ["number", "null"] },
+        "gsd_ratio": { "type": ["number", "null"] },
+        "terrain_class": { "type": ["string", "null"] },
+        "overlap_fraction": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "reference_quality": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,90 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.import_linter_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Node / web
+node_modules/
+*.tsbuildinfo
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!infra/compose/.env.platform.example
+*.pem
+*.key
+secrets/
+
+# Scientific data that must never enter Git (WP-00, section 5.2).
+# Git stores manifests, checksums, acquisition instructions, small permitted
+# fixtures, and expected results. It does not store mission products.
+data/*
+!data/.gitignore
+!data/README.md
+!data/datasets.example.json
+kernels/
+*.IMG
+*.img
+*.cub
+*.lbl
+*.LBL
+*.qub
+*.QUB
+*.tif
+*.tiff
+*.TIF
+*.jp2
+*.bsp
+*.bpc
+*.tpc
+*.tls
+*.tsc
+*.bc
+*.ck
+*.pck
+*.spk
+*.ti
+*.tf
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Local model registry contents. Documentation and examples remain tracked.
+model/*
+!model/.gitignore
+!model/README.md
+!model/registry.example.json
+
+# Run outputs and scratch
+runs/
+artifacts/
+outputs/
+scratch/
+tmp/
+*.log
+
+# Tooling
+.DS_Store
+.idea/
+.vscode/
+
+# Superpowers scratch workspace (SDD ledger, briefs, review packages)
+.superpowers/

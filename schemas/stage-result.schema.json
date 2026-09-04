@@ -1,0 +1,539 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/stage-result.schema.json",
+  "title": "Stage result",
+  "description": "Input manifest hashes, the exact parameter subset read, typed outputs with checksum and CRS and units, warnings, failure code and retryability and remediation hint, stage metrics, algorithm and dependency versions, deterministic seed, instrumentation, code revision, environment fingerprint, and publication state. Implementation plan section 6.5.",
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "description": "A reference to one output file, with everything needed to verify it.",
+      "properties": {
+        "kind": {
+          "description": "Role of this artefact within the stage, for example 'matches'.",
+          "title": "Kind",
+          "type": "string"
+        },
+        "relative_path": {
+          "description": "Path relative to the run root. Never absolute, so a run directory can be relocated or archived without rewriting its manifest.",
+          "title": "Relative Path",
+          "type": "string"
+        },
+        "media_type": {
+          "description": "IANA media type, for example 'image/tiff'.",
+          "title": "Media Type",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "SHA-256 of the artefact's bytes.",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "description": "Artefact size in bytes.",
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "publication_state": {
+          "$ref": "#/$defs/PublicationState",
+          "default": "scratch"
+        },
+        "schema_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Identifier of the JSON Schema this artefact validates against.",
+          "title": "Schema Id"
+        },
+        "crs_wkt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Full CRS for a georeferenced artefact. Required for rasters.",
+          "title": "Crs Wkt"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Raster shape, band-major, for a raster artefact.",
+          "title": "Shape"
+        },
+        "nodata": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Nodata value in the artefact's own pixel units, which is why this field carries no unit suffix.",
+          "title": "Nodata"
+        },
+        "units": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Physical units of the pixel values.",
+          "title": "Units"
+        }
+      },
+      "required": [
+        "kind",
+        "relative_path",
+        "media_type",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "EnvironmentFingerprint": {
+      "additionalProperties": false,
+      "description": "What the stage ran on.\n\nReproducibility is reported at the tolerance actually measured, and that\nreport is meaningless without knowing what changed between two runs.",
+      "properties": {
+        "python_version": {
+          "title": "Python Version",
+          "type": "string"
+        },
+        "platform": {
+          "title": "Platform",
+          "type": "string"
+        },
+        "code_revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository revision, when the run is from a checkout.",
+          "title": "Code Revision"
+        },
+        "dependency_versions": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Dependency Versions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "python_version",
+        "platform"
+      ],
+      "title": "EnvironmentFingerprint",
+      "type": "object"
+    },
+    "FailureCode": {
+      "description": "A stable, machine-readable failure identity.",
+      "enum": [
+        "input.missing_file",
+        "input.checksum_mismatch",
+        "input.label_unparseable",
+        "input.label_raster_disagreement",
+        "input.hostile_label",
+        "input.raster_driver_not_allowed",
+        "input.unsupported_payload",
+        "input.not_calibrated",
+        "input.resource_limit_exceeded",
+        "reference.no_coverage",
+        "reference.bundle_incomplete",
+        "reference.terrain_out_of_coverage",
+        "reference.control_unavailable",
+        "geometry.kernel_coverage_gap",
+        "geometry.model_unvalidated",
+        "geometry.footprint_disagreement",
+        "geometry.no_overlap",
+        "geometry.crs_unresolved",
+        "matching.insufficient_candidates",
+        "matching.all_regions_masked",
+        "matching.prior_exceeded",
+        "matching.model_unavailable",
+        "refinement.did_not_converge",
+        "refinement.covariance_invalid",
+        "refinement.estimator_disagreement",
+        "coverage.insufficient_occupancy",
+        "coverage.eligible_area_too_small",
+        "adjustment.rank_deficient",
+        "adjustment.did_not_converge",
+        "adjustment.withheld_error_exceeded",
+        "product.write_failed",
+        "product.schema_invalid",
+        "product.checksum_mismatch",
+        "validation.unknown_parameter",
+        "validation.required_metric_missing",
+        "validation.route_not_qualified",
+        "validation.units_inconsistent",
+        "resource.memory_budget_exceeded",
+        "resource.storage_exhausted",
+        "resource.timeout",
+        "resource.device_unavailable",
+        "internal.cancelled",
+        "internal.unexpected_error"
+      ],
+      "title": "FailureCode",
+      "type": "string"
+    },
+    "PublicationState": {
+      "description": "Where an artefact sits in the write-validate-publish sequence.",
+      "enum": [
+        "scratch",
+        "published",
+        "orphaned"
+      ],
+      "title": "PublicationState",
+      "type": "string"
+    },
+    "ResourceUsage": {
+      "additionalProperties": false,
+      "description": "Measured cost of a stage.\n\nRecorded so that resource behaviour is characterised rather than claimed\n(R-013). Every field is optional because a measurement that was not taken is\n``None`` with the rest of the record intact, never zero.",
+      "properties": {
+        "wall_time_s": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Wall Time S"
+        },
+        "cpu_time_s": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cpu Time S"
+        },
+        "peak_memory_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Memory Bytes"
+        },
+        "read_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Read Bytes"
+        },
+        "written_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Written Bytes"
+        },
+        "device": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Accelerator used, if any.",
+          "title": "Device"
+        }
+      },
+      "title": "ResourceUsage",
+      "type": "object"
+    },
+    "StageFailure": {
+      "additionalProperties": false,
+      "description": "Why a stage failed or refused, and what to do about it.\n\n``category``, ``retryable``, and ``remediation`` are derived from the code\nrather than supplied, so that the same code cannot be reported as retryable\nin one stage and not in another.",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/FailureCode"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "context": {
+          "additionalProperties": true,
+          "title": "Context",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "StageFailure",
+      "type": "object"
+    },
+    "StageOutcome": {
+      "description": "How a stage ended.",
+      "enum": [
+        "succeeded",
+        "succeeded_with_warnings",
+        "rejected",
+        "failed",
+        "cancelled"
+      ],
+      "title": "StageOutcome",
+      "type": "string"
+    },
+    "StageWarning": {
+      "additionalProperties": false,
+      "description": "A non-fatal concern that a reviewer must be able to see.",
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "context": {
+          "additionalProperties": true,
+          "title": "Context",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "StageWarning",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "stage_name": {
+      "title": "Stage Name",
+      "type": "string"
+    },
+    "stage_version": {
+      "description": "Bumped whenever the stage's behaviour changes. Resume compares this, not the source bytes, so a behavioural change that does not bump it will be wrongly reused. ADR-0013 records that trade-off.",
+      "title": "Stage Version",
+      "type": "string"
+    },
+    "algorithm": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Algorithm"
+    },
+    "algorithm_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Algorithm Version"
+    },
+    "attempt": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Attempt",
+      "type": "integer"
+    },
+    "outcome": {
+      "$ref": "#/$defs/StageOutcome"
+    },
+    "warnings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/StageWarning"
+      },
+      "title": "Warnings",
+      "type": "array"
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/StageFailure"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "input_digests": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Digest of every input this stage read, keyed by logical name.",
+      "title": "Input Digests",
+      "type": "object"
+    },
+    "parameter_subset": {
+      "additionalProperties": true,
+      "description": "Exactly the parameters this stage read, not the whole parameter set. Recording the whole set would invalidate resume whenever an unrelated parameter changed.",
+      "title": "Parameter Subset",
+      "type": "object"
+    },
+    "outputs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ArtifactRef"
+      },
+      "title": "Outputs",
+      "type": "array"
+    },
+    "metrics": {
+      "additionalProperties": true,
+      "title": "Metrics",
+      "type": "object"
+    },
+    "validity_mask_summary": {
+      "additionalProperties": true,
+      "title": "Validity Mask Summary",
+      "type": "object"
+    },
+    "seed": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Seed"
+    },
+    "started_utc": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Started Utc"
+    },
+    "ended_utc": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ended Utc"
+    },
+    "resources": {
+      "$ref": "#/$defs/ResourceUsage"
+    },
+    "environment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/EnvironmentFingerprint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "publication_state": {
+      "$ref": "#/$defs/PublicationState",
+      "default": "scratch"
+    },
+    "commit_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Identifier of the atomic publication that made this durable.",
+      "title": "Commit Id"
+    }
+  },
+  "required": [
+    "stage_name",
+    "stage_version",
+    "outcome"
+  ],
+  "type": "object"
+}

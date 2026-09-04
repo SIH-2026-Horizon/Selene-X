@@ -1,0 +1,127 @@
+# SELENE-XR workspace root.
+#
+# This file configures the development toolchain only. It is not an installable
+# distribution. The four Python distributions live under `packages/` and are
+# declared as uv workspace members below.
+
+[project]
+name = "selene-xr-workspace"
+version = "0.0.0"
+description = "Development workspace for the SELENE-XR lunar image registration pipeline"
+requires-python = ">=3.11,<3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "mypy>=1.10",
+    "ruff>=0.6",
+    "import-linter>=2.0",
+    "pip-audit>=2.7",
+    "detect-secrets>=1.5",
+    "pip-licenses>=4.4",
+    "types-jsonschema>=4.22",
+]
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+selene-core = { workspace = true }
+selene-client = { workspace = true }
+selene-service = { workspace = true }
+selene-worker = { workspace = true }
+
+# ---------------------------------------------------------------------------
+# Formatting and linting
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = [
+    "packages/selene_core/src",
+    "packages/selene_client/src",
+    "packages/selene_service/src",
+    "packages/selene_worker/src",
+    "tests",
+]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "S",        # bandit-style security rules
+    "ANN",      # missing annotations
+    "RUF",      # ruff-specific
+]
+ignore = [
+    "ANN401",   # explicit Any is occasionally required at adapter boundaries
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "ANN"]          # asserts and loose annotations are fine in tests
+"benchmarks/scripts/**" = ["S101"]
+
+[tool.ruff.lint.flake8-bandit]
+# Subprocess use is permitted only through the argument-array, shell-disabled
+# helper required by WP-02 task 13. The rule stays on everywhere else.
+check-typed-exception = true
+
+# ---------------------------------------------------------------------------
+# Static typing
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_generics = true
+mypy_path = [
+    "packages/selene_core/src",
+    "packages/selene_client/src",
+    "packages/selene_service/src",
+    "packages/selene_worker/src",
+]
+files = ["packages", "tests", "benchmarks"]
+
+[[tool.mypy.overrides]]
+module = ["osgeo.*", "rasterio.*", "spiceypy.*", "pvl.*", "ale.*", "csmapi.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["torch", "torch.*", "joblib", "sklearn", "sklearn.*", "datasets", "datasets.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["selene_core.models.architectures"]
+disable_error_code = ["misc"]
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "unit: fast numerical, parser, and contract unit tests",
+    "property: property-based invariants",
+    "integration: exercises real local dependencies (GDAL, ISIS, PostgreSQL)",
+    "science: frozen scene regression and ablation evidence",
+    "security: hostile-input and authorization fixtures",
+    "e2e: full CLI/API/UI workflows",
+    "requires_data: needs a benchmark product that is not committed to Git",
+    "requires_gpu: needs an accelerator",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["selene_core", "selene_client", "selene_service", "selene_worker"]

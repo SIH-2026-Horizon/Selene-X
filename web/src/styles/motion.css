@@ -1,0 +1,90 @@
+/*
+ * Motion is deliberately quiet in the scientific console. These utilities
+ * never use opacity as a prerequisite for readable content: data and controls
+ * remain available while a short positional or status cue runs.
+ */
+:root {
+  --motion-duration-enter: 180ms;
+  --motion-duration-reveal: 220ms;
+  --motion-duration-status: 1600ms;
+  --motion-stagger-step: 35ms;
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes selene-motion-enter {
+  from {
+    transform: translateY(-2px);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes selene-motion-reveal {
+  from {
+    transform: translateY(4px);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes selene-motion-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.72;
+    transform: scale(0.94);
+  }
+}
+
+@keyframes selene-motion-progress-sweep {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@layer utilities {
+  .motion-enter {
+    animation: selene-motion-enter var(--motion-duration-enter) var(--motion-ease-out) both;
+  }
+
+  .motion-reveal {
+    animation: selene-motion-reveal var(--motion-duration-reveal) var(--motion-ease-out) both;
+    animation-delay: calc(var(--motion-index, 0) * var(--motion-stagger-step));
+  }
+
+  .motion-stagger > .motion-reveal {
+    animation-delay: calc(var(--motion-index, 0) * var(--motion-stagger-step));
+  }
+
+  .motion-status-running {
+    animation: selene-motion-status-pulse var(--motion-duration-status) ease-in-out infinite;
+  }
+
+  .motion-progress {
+    background-image: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.34) 50%, transparent 80%);
+    background-size: 200% 100%;
+    animation: selene-motion-progress-sweep 1500ms linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-enter,
+  .motion-reveal,
+  .motion-status-running,
+  .motion-progress {
+    animation: none !important;
+    transition: none !important;
+  }
+}

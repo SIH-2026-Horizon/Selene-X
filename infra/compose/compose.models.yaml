@@ -1,0 +1,23 @@
+name: selene-xr-models
+
+services:
+  trainer:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile.training
+    image: selene-xr-trainer:local
+    environment:
+      HF_HOME: /workspace/data/huggingface-cache
+      HF_TOKEN: ${HF_TOKEN:-}
+      SXR_MODEL_ROOT: /models
+    volumes:
+      - ../../model:/models
+      - ../../data:/workspace/data
+    command:
+      - train
+      - --config
+      - /workspace/train/configs/selene_matcher.json
+      - --version
+      - local-dev
+      - --model-root
+      - /models

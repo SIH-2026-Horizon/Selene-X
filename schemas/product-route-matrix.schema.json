@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/product-route-matrix.schema.json",
+  "title": "Interim public product-route matrix",
+  "description": "A route fact is either explicitly unknown (null plus reason) or known with a retrievable citation and evidence checksum. Credentials are represented only as a requirement/type, never a secret.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "matrix_id", "interim", "limitation_status", "coverage_dimensions", "routes"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "matrix_id": {"type": "string", "minLength": 1}, "interim": {"const": true}, "limitation_status": {"const": "external_product_evidence_pending"},
+    "coverage_dimensions": {"type": "array", "uniqueItems": true, "minItems": 4, "items": {"enum": ["solar_angle_difference_deg", "gsd_ratio", "relief", "overlap_fraction"]}},
+    "routes": {"type": "array", "minItems": 8, "items": {"$ref": "#/$defs/route"}}
+  },
+  "$defs": {
+    "citation": {"type": "object", "additionalProperties": false, "required": ["uri", "retrieved_utc", "evidence_sha256"], "properties": {"uri": {"type": "string", "format": "uri", "minLength": 1}, "retrieved_utc": {"type": "string", "format": "date-time"}, "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "unknown": {"type": "object", "additionalProperties": false, "required": ["value", "reason"], "properties": {"value": {"type": "null"}, "reason": {"type": "string", "minLength": 1}}},
+    "known_text": {"type": "object", "additionalProperties": false, "required": ["value", "citations"], "properties": {"value": {"type": "string", "minLength": 1}, "citations": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/citation"}}}},
+    "known_uri": {"type": "object", "additionalProperties": false, "required": ["value", "citations"], "properties": {"value": {"type": "string", "format": "uri", "minLength": 1}, "citations": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/citation"}}}},
+    "known_sha256": {"type": "object", "additionalProperties": false, "required": ["value", "citations"], "properties": {"value": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "citations": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/citation"}}}},
+    "known_number": {"type": "object", "additionalProperties": false, "required": ["value", "citations"], "properties": {"value": {"type": "number"}, "citations": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/citation"}}}},
+    "known_bytes": {"type": "object", "additionalProperties": false, "required": ["value", "citations"], "properties": {"value": {"type": "integer", "minimum": 0}, "citations": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/citation"}}}},
+    "fact_text": {"oneOf": [{"$ref": "#/$defs/unknown"}, {"$ref": "#/$defs/known_text"}]}, "fact_uri": {"oneOf": [{"$ref": "#/$defs/unknown"}, {"$ref": "#/$defs/known_uri"}]}, "fact_sha256": {"oneOf": [{"$ref": "#/$defs/unknown"}, {"$ref": "#/$defs/known_sha256"}]}, "fact_number": {"oneOf": [{"$ref": "#/$defs/unknown"}, {"$ref": "#/$defs/known_number"}]}, "fact_bytes": {"oneOf": [{"$ref": "#/$defs/unknown"}, {"$ref": "#/$defs/known_bytes"}]},
+    "credentials": {"oneOf": [{"$ref": "#/$defs/unknown"}, {"type": "object", "additionalProperties": false, "required": ["required", "credential_types", "citations"], "properties": {"required": {"type": "boolean"}, "credential_types": {"type": "array", "items": {"type": "string", "minLength": 1}}, "citations": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/citation"}}}}]},
+    "route": {
+      "type": "object", "additionalProperties": false,
+      "required": ["route_id", "mission", "payload_family", "product_id", "source_url", "access", "credentials", "license", "files_and_references", "coverage", "status"],
+      "properties": {
+        "route_id": {"type": "string", "minLength": 1}, "mission": {"type": "string", "minLength": 1}, "payload_family": {"enum": ["OHRC", "TMC-2", "IIRS", "LROC_NAC", "SELENE_TC", "SLDEM", "LOLA", "REGIONAL_NAC_DTM"]},
+        "product_id": {"$ref": "#/$defs/fact_text"}, "source_url": {"$ref": "#/$defs/fact_uri"}, "access": {"$ref": "#/$defs/fact_text"}, "credentials": {"$ref": "#/$defs/credentials"}, "license": {"$ref": "#/$defs/fact_text"},
+        "files_and_references": {"type": "object", "additionalProperties": false, "required": ["bytes", "sha256", "label", "kernel", "calibration", "reference_version"], "properties": {"bytes": {"$ref": "#/$defs/fact_bytes"}, "sha256": {"$ref": "#/$defs/fact_sha256"}, "label": {"$ref": "#/$defs/fact_text"}, "kernel": {"$ref": "#/$defs/fact_text"}, "calibration": {"$ref": "#/$defs/fact_text"}, "reference_version": {"$ref": "#/$defs/fact_text"}}},
+        "coverage": {"type": "object", "additionalProperties": false, "required": ["solar_angle_difference_deg", "gsd_ratio", "relief", "overlap_fraction"], "properties": {"solar_angle_difference_deg": {"$ref": "#/$defs/fact_number"}, "gsd_ratio": {"$ref": "#/$defs/fact_number"}, "relief": {"$ref": "#/$defs/fact_number"}, "overlap_fraction": {"$ref": "#/$defs/fact_number"}}},
+        "status": {"const": "external_evidence_pending"}
+      }
+    }
+  }
+}

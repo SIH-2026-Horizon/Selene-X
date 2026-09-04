@@ -1,0 +1,13 @@
+{
+  "dataset": {
+    "source": "hf://YOUR_HF_USERNAME/selene-xr-iirs-bandweights",
+    "split": "train"
+  },
+  "device": "auto",
+  "learning_rate": 0.05,
+  "model_name": "iirs_bandweights",
+  "model_root": "model",
+  "seed": 20260317,
+  "steps": 2000,
+  "target_instrument": "TMC2"
+}

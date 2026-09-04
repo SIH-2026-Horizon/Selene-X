@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/independent-checkpoint.schema.json",
+  "title": "Independent held-out checkpoint",
+  "description": "Auditable two-reviewer checkpoint for one held-out scene. Its ID is content-addressed excluding the report link, allowing the final immutable report to be linked after it is published.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "checkpoint_id", "benchmark_run_report_id", "scene_product_id", "split_role", "process", "reviewers", "covariance", "control_uncertainty_m", "control_uncertainty_reason", "disagreement", "status", "status_reason"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"}, "checkpoint_id": {"type": "string", "pattern": "^icp-sha256-[0-9a-f]{64}$"}, "benchmark_run_report_id": {"type": "string", "pattern": "^brr-sha256-[0-9a-f]{64}$"}, "scene_product_id": {"type": "string", "minLength": 1}, "split_role": {"const": "held_out_test"},
+    "process": {"type": "object", "additionalProperties": false, "required": ["independent", "blinded", "protocol_version"], "properties": {"independent": {"const": true}, "blinded": {"const": true}, "protocol_version": {"type": "string", "minLength": 1}}},
+    "reviewers": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "object", "additionalProperties": false, "required": ["reviewer_id", "decision"], "properties": {"reviewer_id": {"type": "string", "minLength": 1}, "decision": {"enum": ["accept", "exclude", "unresolved"]}}}},
+    "covariance": {"type": "object", "additionalProperties": false, "required": ["value", "reason"], "properties": {"value": {"oneOf": [{"type": "null"}, {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}}]}, "reason": {"type": "string", "minLength": 1}}},
+    "control_uncertainty_m": {"type": ["number", "null"], "minimum": 0}, "control_uncertainty_reason": {"type": "string", "minLength": 1},
+    "disagreement": {"type": "object", "additionalProperties": false, "required": ["present", "description", "resolution"], "properties": {"present": {"type": "boolean"}, "description": {"type": "string", "minLength": 1}, "resolution": {"oneOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["resolver_id", "decision", "rationale"], "properties": {"resolver_id": {"type": "string", "minLength": 1}, "decision": {"enum": ["accept", "exclude", "unresolved"]}, "rationale": {"type": "string", "minLength": 1}}}]}}},
+    "status": {"enum": ["accepted", "excluded", "unresolved"]}, "status_reason": {"type": "string", "minLength": 1}
+  },
+  "allOf": [{"if": {"properties": {"disagreement": {"properties": {"present": {"const": true}}, "required": ["present"]}}, "required": ["disagreement"]}, "then": {"properties": {"disagreement": {"properties": {"resolution": {"type": "object"}}}}}}]
+}

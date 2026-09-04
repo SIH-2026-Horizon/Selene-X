@@ -1,0 +1,18 @@
+{
+  "batch_size": 8,
+  "confidence_loss_weight": 0.2,
+  "dataset": {
+    "source": "hf://YOUR_HF_USERNAME/selene-xr-matcher",
+    "split": "train"
+  },
+  "device": "auto",
+  "epochs": 40,
+  "feature_channels": 32,
+  "gradient_clip": 1.0,
+  "groups": 5,
+  "learning_rate": 0.0002,
+  "model_name": "selene_matcher",
+  "model_root": "model",
+  "seed": 20260317,
+  "weight_decay": 0.01
+}

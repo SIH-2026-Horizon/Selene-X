@@ -1,0 +1,25 @@
+[project]
+name = "selene-service"
+version = "0.0.0"
+description = "SELENE-XR REST service: OpenAPI contract, PostgreSQL/PostGIS state authority, policy hooks"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = { file = "../../LICENSE" }
+dependencies = [
+    "selene-core",
+    "fastapi>=0.111",
+    "uvicorn>=0.30",
+    "pydantic-settings>=2.3",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "argon2-cffi>=23.1",
+    "psycopg[binary]>=3.1",
+    "geoalchemy2>=0.15",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/selene_service"]

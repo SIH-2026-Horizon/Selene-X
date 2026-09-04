@@ -1,0 +1,22 @@
+ARG BASE_IMAGE=python:3.12-slim
+FROM ${BASE_IMAGE}
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    SXR_MODEL_ROOT=/models
+
+WORKDIR /workspace
+
+COPY LICENSE /workspace/LICENSE
+COPY packages/selene_core /workspace/packages/selene_core
+COPY train /workspace/train
+COPY data /workspace/data
+
+RUN python -m pip install --no-cache-dir \
+    /workspace/packages/selene_core[learned] \
+    /workspace/train
+
+VOLUME ["/models", "/workspace/data"]
+
+ENTRYPOINT ["selene-train"]
+CMD ["list-models"]

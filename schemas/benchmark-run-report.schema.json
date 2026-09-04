@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://selene-xr.invalid/schemas/benchmark-run-report.schema.json",
+  "title": "Benchmark run report",
+  "description": "Immutable, content-addressed summary of every attempted benchmark source scene. Per-scene stage-result documents are additionally validated against stage-result.schema.json by the writer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_report_id", "manifest_id", "manifest_sha256", "run_context", "scene_results", "held_out_checkpoints", "summary"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "run_report_id": {"type": "string", "pattern": "^brr-sha256-[0-9a-f]{64}$"},
+    "manifest_id": {"type": "string", "minLength": 1},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "run_context": {
+      "type": "object", "additionalProperties": false,
+      "required": ["frozen_route", "parameter_fit_provenance", "tuning_actor_ids", "tuning_scene_product_ids"],
+      "properties": {
+        "frozen_route": {"type": "object", "additionalProperties": false, "required": ["route_id", "route_version", "parameter_snapshot", "snapshot_sha256"], "properties": {"route_id": {"type": "string", "minLength": 1}, "route_version": {"type": "string", "minLength": 1}, "parameter_snapshot": {"type": "object"}, "snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+        "parameter_fit_provenance": {"type": ["object", "null"]},
+        "tuning_actor_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "tuning_scene_product_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "scene_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["product_id", "split_role", "result"],
+        "properties": {
+          "product_id": {"type": "string", "minLength": 1},
+          "split_role": {"enum": ["train_development", "validation", "held_out_test", "not_applicable"]},
+          "result": {"type": "object"}
+        }
+      }
+    },
+    "held_out_checkpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["checkpoint_id", "scene_product_id", "status", "status_reason"],
+        "properties": {
+          "checkpoint_id": {"type": "string", "pattern": "^icp-sha256-[0-9a-f]{64}$"},
+          "scene_product_id": {"type": "string", "minLength": 1},
+          "status": {"enum": ["accepted", "excluded", "unresolved"]},
+          "status_reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total_scenes", "succeeded", "rejected", "failed", "cancelled", "held_out_checkpoint_population"],
+      "properties": {
+        "total_scenes": {"type": "integer", "minimum": 0},
+        "succeeded": {"type": "integer", "minimum": 0},
+        "rejected": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0},
+        "cancelled": {"type": "integer", "minimum": 0},
+        "held_out_checkpoint_population": {
+          "type": "object", "additionalProperties": false,
+          "required": ["total", "accepted", "excluded", "unresolved"],
+          "properties": {"total": {"type": "integer", "minimum": 0}, "accepted": {"type": "integer", "minimum": 0}, "excluded": {"type": "integer", "minimum": 0}, "unresolved": {"type": "integer", "minimum": 0}}
+        }
+      }
+    }
+  }
+}

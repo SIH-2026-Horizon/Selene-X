@@ -1,0 +1,55 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: selene-matcher-training
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: trainer
+          image: selene-xr-trainer:local
+          imagePullPolicy: IfNotPresent
+          args:
+            - train
+            - --config
+            - /workspace/train/configs/selene_matcher.json
+            - --version
+            - matcher-2026-08-29
+            - --model-root
+            - /models
+          env:
+            - name: HF_HOME
+              value: /workspace/data/huggingface-cache
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface-token
+                  key: token
+                  optional: true
+            - name: SXR_MODEL_ROOT
+              value: /models
+            - name: SXR_DATASET_REPO
+              valueFrom:
+                configMapKeyRef:
+                  name: selene-training-datasets
+                  key: selene_matcher
+          resources:
+            limits:
+              nvidia.com/gpu: "1"
+            requests:
+              cpu: "4"
+              memory: 16Gi
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: training-cache
+              mountPath: /workspace/data
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: selene-models
+        - name: training-cache
+          persistentVolumeClaim:
+            claimName: selene-training-cache

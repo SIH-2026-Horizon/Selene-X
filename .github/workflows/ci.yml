@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"
+
+jobs:
+  python:
+    name: Python checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Sync workspace
+        run: uv sync --all-packages --all-groups
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type check
+        run: uv run mypy
+
+      # ADR-005. selene_core must not acquire an HTTP, ORM, queue, cache,
+      # object-store, or UI dependency, and the stage layering must hold.
+      - name: Enforce import boundaries
+        run: uv run lint-imports
+
+      - name: Validate local platform Compose profile
+        run: uv run python scripts/validate_platform_compose.py
+
+      - name: Unit and property tests
+        run: uv run pytest -m "unit or property" --cov --cov-report=term-missing
+
+      - name: End-to-end tests
+        run: uv run pytest -m e2e
+
+  container-builds:
+    name: Container build checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Builds validate Dockerfile COPY boundaries and the locked workspace.
+      # They do not run a container, apply migrations, or create Docker volumes.
+      - name: Build service image
+        run: docker build --file infra/docker/Dockerfile.service --tag selene-xr-service:ci .
+
+      - name: Build training image
+        run: docker build --file infra/docker/Dockerfile.training --tag selene-xr-trainer:ci .
+
+  supply-chain:
+    name: Secrets and licences
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync workspace
+        run: uv sync --all-packages --all-groups
+
+      - name: Secret scan
+        run: uv run detect-secrets scan --baseline .secrets.baseline
+
+      - name: Dependency audit
+        run: uv run pip-audit --strict
+
+      # WP-11 task 9: open-source dependencies are distinguished from
+      # externally licensed GPU runtimes and toolkits.
+      - name: Licence inventory
+        run: uv run pip-licenses --format=markdown --with-urls
+
+  schemas:
+    name: Schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync workspace
+        run: uv sync --all-packages --all-groups
+
+      - name: Check every schema is valid JSON Schema
+        run: |
+          uv run python - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          from jsonschema.validators import validator_for
+
+          failures = []
+          for path in sorted(pathlib.Path("schemas").glob("*.schema.json")):
+              document = json.loads(path.read_text())
+              validator = validator_for(document)
+              try:
+                  validator.check_schema(document)
+              except Exception as error:  # noqa: BLE001 - reported, not handled
+                  failures.append(f"{path}: {error}")
+          for failure in failures:
+              print(failure, file=sys.stderr)
+          sys.exit(1 if failures else 0)
+          PY
+
+# Integration, science, security, and accessibility jobs are added by the work
+# packages that introduce them (WP-02 onward). They require PostgreSQL/
+# PostGIS, GDAL, ISIS, and benchmark data that is not committed to this
+# repository, so they cannot run in this workflow as written. The `e2e`
+# marker as a category will generally need those same services once
+# scientific stages exist; the WP-01 no-op e2e subset that exists today needs
+# none of them, so it already runs above in the `python` job.
