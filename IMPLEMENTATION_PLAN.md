@@ -4,14 +4,23 @@
 
 This document turns the repository's design material into an implementable, evidence-driven plan for SIH26166. It is ordered by technical dependency and risk retirement. It intentionally contains no calendar or effort estimates; progress is controlled by entry conditions, verification evidence, and exit criteria.
 
-The repository includes implemented pipeline foundations, contracts, fixtures,
-and baselines. It also includes an isolated Vite/React/TypeScript/Tailwind web
-console prototype in `web/`, backed by local mock data and mock job streaming.
-The prototype is not integrated with an implemented backend or scientific
-production route and does not establish mission-data results, performance, or
-scientific validation. No capability should be represented as satisfying a
-work package until its exit criteria are met and the evidence is committed or
-linked from a versioned benchmark manifest.
+The repository includes implemented scientific components and an unqualified
+local in-memory registration slice, plus a persistence-integrated operator
+platform. The scientific components cover defensive ingestion,
+geometry/preflight contracts, matching, verification, coverage selection,
+refinement, covariance, limited adjustment, verdicts, and local bundle
+validation; only the matching-through-bundle subset is integrated by the local
+in-memory slice. The service and web console persist and display real
+PostgreSQL/PostGIS records, including registration provenance, semantic
+knowledge, reviews, and session-authenticated operators; they do not yet invoke
+the scientific slice.
+
+This is still a development foundation, not a completed mission route. It does
+not establish held-out mission-data accuracy, the proposed performance gates,
+final COG/GeoPackage products, API/CLI scientific parity, or SIH26166
+compliance. No capability satisfies a work package merely because a component
+or synthetic test exists: its exit criteria require the stated integration and
+committed evidence.
 
 ### Source authority
 
@@ -38,6 +47,27 @@ When the sources disagree, the technical verification note takes precedence. The
 | The presentation alternates between a fixed five-channel representation and a three-channel risk mitigation | No fixed channel count is accepted in advance. Channels use a common contract, are independently toggleable, and remain enabled only where ablation evidence supports them. |
 | COG and Zarr are both named as storage formats | COG/GeoTIFF is the MVP registered-raster format. Zarr is deferred until a corpus or multidimensional intermediate access pattern demonstrates a need. |
 | The full research and enterprise platform is one prototype | The credible MVP will be implemented first. Advanced rendering, learned-corpus work, graph adjustment, jitter/SFS research, and distributed operations have separate entry criteria. |
+
+### Current implementation snapshot
+
+Status here describes the checked-in implementation, not scientific
+qualification. “Partial” means useful code and tests exist but one or more exit
+criteria remain unmet.
+
+| Work package | Status | Checked-in evidence | Principal remaining gap |
+| --- | --- | --- | --- |
+| WP-00 governance | Partial | Schemas, interim route matrix, acquisition/leakage checks, controlled shifts, benchmark runner, and claim ledger | Real integrity-checked route products, frozen splits/control, and published route reports |
+| WP-01 foundation | Substantial, exit evidence incomplete | Package boundaries, typed contracts, JSON Schemas, stage runner, hashing, atomic publication, resume/cancel/failure handling, CLI no-op, and tests | Close remaining contract/ADR evidence and prove the complete vertical slice |
+| WP-02 ingestion | Partial | Hardened PDS4/PVL parsers, raster allowlist, OHRC/TMC-2/IIRS metadata adapters, registration/quarantine, checksums, and preview provenance | Mission fixtures, calibration and kernel completeness, re-validation workflow, and qualified payload adapters |
+| WP-03 geometry/reference | Partial | Lunar CRS and coordinate types, footprint/local geometry, preflight, SPICE inventory/provider contracts, eligibility masks, and PSF-aware pyramids | Independently validated line-scan models and complete LRO/SELENE terrain/control reference routes |
+| WP-04 baselines | Partial | Phase correlation, NCC, SIFT and RIFT-class adapters, tiled execution, de-duplication, and robust candidate verification | Frozen mission baseline reports for every claimed route |
+| WP-05 auxiliary/IIRS | Partial | Local radiometric normalization, conservative shadow estimation, gradient/phase/self-similarity channels, and IIRS-aware metadata/model hooks | Complete thermal/band policy, route integration, and controlled ablations |
+| WP-06 learned challenger | Partial | Dense-flow matcher adapter, local checksummed model registry, training package/configurations, and explicit fallback behavior | Versioned trained artefacts and fair held-out comparison with the baselines |
+| WP-07 verification/coverage | Partial | Forward/backward and robust verification, eligible-grid selection, coverage metrics, and deterministic tests | Mission-scale integration and frozen quality/coverage thresholds |
+| WP-08 refinement/adjustment | Partial | ECC and upsampled Fourier refinement, covariance estimation/calibration, and robust limited linearized adjustment | Observable terrain-aware sensor correction, adjusted geometry export, and real-route validation |
+| WP-09 products/verdicts | Partial | Failure taxonomy, scene-verdict contracts, provenance, CSV/JSON/array local bundles, checksum validation, and tamper tests | COG/GeoTIFF, GeoPackage, adjusted model, complete masks/reports, and qualified accept/review/reject examples |
+| WP-10 interfaces/platform | Partial | CLI foundation; persisted FastAPI/PostGIS API; lifecycle, review, idempotency and cursor contracts; two graph APIs; session roles; persisted web console; local Compose stack | Scientific CLI command, service runner, storage publication, retry/resume/output endpoints, typed parity, and full E2E evidence |
+| WP-11 release evidence | Not satisfied | Broad unit/property/security tests and opt-in PostgreSQL integration tests provide development evidence | Frozen mission benchmarks, ablations, robustness/accessibility runs, clean install, and demonstration/release bundle |
 
 ## 2. Target outcome
 
@@ -164,8 +194,12 @@ flowchart TB
 The core rules are:
 
 - `selene_core` has no dependency on HTTP, ORM, queues, Redis, object-store SDKs, or UI code.
-- The CLI can execute the full scientific path locally using files and manifests.
-- The API calls the same core functions and must not contain a second scientific implementation.
+- The completed CLI must execute the full scientific path locally using files
+  and manifests. The current CLI exposes environment inspection, trusted-local
+  product registration, lifecycle no-op, and run-integrity commands only.
+- The API must call the same core functions and must not contain a second
+  scientific implementation. The current persisted API does not yet execute a
+  scientific run.
 - Worker adapters, when introduced, carry identifiers and immutable parameter snapshots rather than caller-controlled paths or credentials.
 - Original input bytes and geometry remain immutable. Corrected geometry and registered products are named derived variants.
 - Persistent job state has one authority. Ephemeral progress and queued work never become competing state stores.
@@ -173,11 +207,11 @@ The core rules are:
 - Every raster-producing or raster-consuming stage is tiled. A shared `TileSpec` declares core size, halo, valid window, memory/scratch budget, and merge rule; no stage loads a full OHRC frame.
 - Stage and final outputs are written to a temporary location, flushed, checksummed, schema-validated, and atomically published. Stale partial outputs are never discoverable as successful artefacts.
 
-### 5.2 Proposed repository layout
+### 5.2 Repository layout
 
 ```text
 .
-├── web/                              React/TypeScript review application
+├── web/                              React/TypeScript operator console
 ├── packages
 │   ├── selene_core/
 │   │   └── src/selene_core/
@@ -195,7 +229,7 @@ The core rules are:
 │   │       ├── pipeline/            local stage runner and immutable stage results
 │   │       └── types.py             coordinate, match, covariance, and result types
 │   ├── selene_client/               CLI and API client
-│   ├── selene_service/              FastAPI, persistence, policy hooks, product/job APIs
+│   ├── selene_service/              FastAPI, persistence, auth, product/run and graph APIs
 │   └── selene_worker/               optional long-stage adapters
 ├── schemas/                         input, parameter, match, metric, report, manifest schemas
 ├── configs/                         versioned non-secret scientific parameter sets
@@ -211,7 +245,7 @@ The core rules are:
 │   ├── security/
 │   └── e2e/
 ├── infra/
-│   └── compose/                     local service profile after CLI path works
+│   └── compose/                     local PostGIS/service/web/MinIO profiles
 └── docs/
     ├── adr/
     ├── context/
@@ -222,9 +256,11 @@ The core rules are:
 
 Large mission products, credentials, SPICE kernels, model weights, and generated rasters must not be committed to Git. Git stores manifests, checksums, acquisition instructions, small permitted fixtures, and expected results.
 
-### 5.3 Required architecture decisions
+### 5.3 Architecture decisions
 
-Create ADRs before the corresponding code is merged:
+Keep the ADR status index aligned with the implementation. Proposed records are
+not retrospective approval merely because related code exists; they must be
+reviewed and accepted explicitly.
 
 - ADR-001: internal pixel-centre convention and named ISIS/GDAL conversions;
 - ADR-002: lunar body-fixed frame, map projection selection, and CRS serialization;
@@ -240,7 +276,8 @@ Create ADRs before the corresponding code is merged:
 - ADR-012: IIRS thermal/structural processing and unsupported-band policy;
 - ADR-013: stage resume, retry, cancellation, atomic publication, and downstream invalidation;
 - ADR-014: service state authority, minimum persistence model, and transaction boundaries;
-- ADR-015: loopback-only versus authenticated network service boundary.
+- ADR-015: loopback-only versus authenticated network service boundary;
+- ADR-016: session-based operator authentication and fixed local role model.
 
 ### 5.4 Minimum service persistence model
 
@@ -249,6 +286,7 @@ The CLI remains infrastructure-independent, but the REST service needs concrete 
 | Entity | Minimum responsibility |
 | --- | --- |
 | `subjects` / `api_keys` | Minimal non-loopback service identities, hashed scoped credentials, revocation, and audit identity; omitted only in enforced loopback mode |
+| `user_accounts` / `user_sessions` | Argon2-hashed local operator accounts, fixed role, activity/lockout state, revocable server-side session, and bootstrap/creator provenance |
 | `products` | Input identity, owner/scope, payload, validation state, manifest hash, footprint, and quarantine reason |
 | `runs` | Frozen source, reference, parameters, algorithm/model versions, execution state, computed verdict, effective disposition, and code/environment identity |
 | `run_stages` | Ordered stage, attempt, state, input/output hashes, lease or local claim, warning/failure, and atomic completion marker |
@@ -257,8 +295,33 @@ The CLI remains infrastructure-independent, but the REST service needs concrete 
 | `reviews` | Immutable actor, decision, reason code, note, source computed verdict, and recorded timestamp |
 | `idempotency_records` | Subject, operation/key, request-body hash, stored response/result ID, and expiry policy |
 | `run_events` | Append-only state, stage, warning, failure, review, and override history for progress and audit |
+| `knowledge_entities` | Explicit semantic entity type, external ID, label, JSON properties, optional lunar point/CRS, creator, and timestamp |
+| `knowledge_edges` | Explicit directed source/target relation, JSON properties, optional weight, creator, and timestamp |
 
 State transitions and the corresponding event, artefact registration, metric registration, or review record commit in one database transaction. Image bytes remain in a filesystem or S3-compatible store; the database records only validated published objects. Migrations are versioned and integration-tested against a real PostgreSQL/PostGIS instance.
+
+### 5.5 Registration provenance and semantic knowledge
+
+The platform has two graph contracts, and clients must not merge their
+semantics:
+
+1. The **registration provenance graph** is derived at read time from durable
+   subjects, products, runs, stages, artefacts, metrics, and reviews. It is a
+   navigational projection of service state, not a separately editable source
+   of truth. `/registration-graphs` is the canonical route and
+   `/knowledge-graph` remains a compatibility alias.
+2. The **semantic knowledge graph** is explicit domain data stored in
+   `knowledge_entities` and `knowledge_edges`. Entity and relation vocabularies
+   are extensible; stored examples may include craters, observations, payloads,
+   terrain, morphology features, registration jobs, and data products.
+
+Semantic queries are bounded, cursor-paginated, case-insensitive literal
+label/external-ID retrieval with exact entity/relation filters. Direct-neighbor
+and crater-observation routes return only persisted relationships. The service
+must never present lexical retrieval as vector similarity, infer missing
+relationships, auto-seed scientific facts, or use the semantic graph as proof
+of registration accuracy. Every mutation is attributed and idempotent when an
+idempotency key is supplied.
 
 ## 6. Shared scientific and data contracts
 
@@ -454,7 +517,7 @@ Any calibration feedback loop is a separately recorded rerun with new parameters
 
 **Outputs**
 
-- installable package skeletons and web workspace;
+- installable Python packages and web workspace;
 - common schemas and typed models;
 - local stage runner and artefact protocol;
 - shared tiling, resume, cancellation, and atomic-publication protocol;
@@ -815,11 +878,23 @@ Any calibration feedback loop is a separately recorded rerun with new parameters
 
 **Objective:** expose one scientific implementation through local, programmatic, and interactive workflows.
 
-**Current implementation status:** `web/` provides an isolated mock UI
-prototype for the planned catalogue, registration/preflight, jobs/progress,
-and metrics/review/overlay experiences. It does not call an implemented backend
-or scientific route and does not satisfy WP-10's integration, parity,
-persistence, or end-to-end exit criteria.
+**Current implementation status:** partial. The CLI provides environment,
+trusted-local product registration, no-op lifecycle, and run-bundle integrity
+commands. The FastAPI service persists products, runs, stages, events, metrics,
+artefacts, reviews, registration-provenance projections, and explicit semantic
+entities/edges in PostgreSQL/PostGIS. It implements bounded cursor pages,
+idempotent create operations, cancellation, stable errors, health/readiness,
+and session-mode login/profile/Admin account management with server-enforced
+roles. The web console reads those APIs for catalogue, registration metadata,
+run/review/audit, provenance graph, semantic graph, profile, and operator
+administration views. The packaged local stack runs migrations and serves a
+same-origin, loopback-only web ingress.
+
+The service still does not execute `selene_core`, upload or publish scientific
+artefacts, or seed demo/scientific records. The CLI has no command for the
+implemented in-memory registration slice. Retry/resume, output download,
+match/geometry browsing, generated-client parity, and a complete
+preflight-to-export workflow remain open, so WP-10 exit criteria are not met.
 
 **Implementation tasks**
 
@@ -839,6 +914,11 @@ persistence, or end-to-end exit criteria.
 14. Provide synchronized source/reference/registered overlays, checkerboard or swipe comparison, residual vectors, eligibility grid, and a text/numeric alternative for every visual analytic.
 15. Meet keyboard, focus, contrast, reduced-motion, non-colour-only, error-association, and live-status requirements.
 16. Generate a typed client from or checked against the OpenAPI schema.
+17. Expose a bounded registration provenance projection derived only from the
+    persisted operational records; never create a second provenance authority.
+18. Maintain a separate attributed semantic entity/edge API with lexical and
+    exact-filter retrieval, neighbor expansion, explicit truncation metadata,
+    and a graph plus text UI. It must not infer or fabricate lunar knowledge.
 
 **Outputs**
 
@@ -847,6 +927,8 @@ persistence, or end-to-end exit criteria.
 - review UI and accessible analytic alternatives;
 - PostgreSQL/PostGIS service persistence, transactional run/review history, and controlled artefact access;
 - cancellation, compatible-stage resume, targeted retry, idempotency, and health/version behavior;
+- registration-provenance and semantic-knowledge APIs with bounded graph views;
+- local session authentication, profile management, and fixed Analyst/Reviewer/Admin enforcement;
 - end-to-end workflow fixtures.
 
 **Verification**
@@ -859,6 +941,11 @@ persistence, or end-to-end exit criteria.
 - a non-loopback bind is refused without configured authentication;
 - interrupted, cancelled, resumed, and retried runs preserve atomic history and never expose partial artefacts;
 - competing review decisions resolve transactionally and retain the winning immutable record;
+- graph API tests prove provenance is derived from authoritative records,
+  semantic edges reference stored entities, pagination/truncation is explicit,
+  and empty databases remain empty;
+- authentication tests cover login lockout, cookie/session revocation, profile
+  changes, role-gated review, and Admin-only account management;
 - accessibility checks include automated rules and keyboard/manual analytic review.
 
 **Exit criteria**
@@ -929,6 +1016,9 @@ The exact endpoint names may change before the OpenAPI schema is frozen, but the
 | Retrieve geometry | Return original or named adjusted geometry with quality status and provenance |
 | Record review | Append an authenticated immutable accept/reject decision with reason; do not rewrite the computed `review` verdict |
 | Download outputs | Authorize and deliver large artefacts without embedding bytes in JSON |
+| Read registration provenance | Project persisted product/run/stage/artefact/metric/review relationships without creating an independent graph authority; disclose bounded child collections |
+| Manage semantic knowledge | Create and browse attributed entities and directed edges, retrieve neighbours, and support bounded literal/exact-filter queries without inference or fabricated similarity |
+| Authenticate local operators | In session mode, log in/out through a revocable `httpOnly` cookie, hydrate/update the current profile, and restrict account provisioning/role changes to Admins |
 | Validate output bundle | Recompute checksums, validate schemas/CRS, and report missing or tampered artefacts |
 | Run benchmark | Resolve a frozen manifest and emit aggregate plus per-scene reports without excluding failures |
 | Health and version | Separate process liveness from dependency readiness and report build/schema/algorithm versions without exposing secrets |
@@ -965,7 +1055,7 @@ An execution failure has no fabricated scientific verdict. The failure report st
 | Integration | Tiny complete registration through real local dependencies and output writers |
 | Science regression | Frozen controlled, real, and adversarial scenes with per-route and per-stratum results |
 | Ablation | Metadata prior, PSF matching, each auxiliary channel, learned challenger, coverage, refinement, covariance, adjustment |
-| Contract | OpenAPI diff, typed client, output schemas, manifest compatibility |
+| Contract | OpenAPI diff, typed client, output schemas, manifest compatibility, graph separation/pagination, session and role rules |
 | End-to-end | Product validation, preflight, run, progress, review, export, validation, and a failure case |
 | Accessibility | Keyboard-only review, focus, contrast, text alternatives, live state, reduced motion, non-colour-only encoding |
 | Robustness | Cancellation, corrupt artefacts, absent references/kernels, low resources, process interruption, model fallback |
@@ -1064,7 +1154,7 @@ Advanced work begins only when its prerequisite evidence exists.
 | Graph adjustment | Multiple pairwise routes meet their own gates; shared-ground identity and covariance normalization are validated; closure is labeled consistency only |
 | Shape-from-shading assist | DTM limitation is demonstrated; base renderer, matcher, and adjuster are stable; auxiliary terrain output can be clearly marked non-geodetic |
 | Distributed workers | Local jobs are correct and stage boundaries are stable; measured concurrency need justifies queue complexity; idempotent stage effects are tested |
-| Institutional identity and role matrix | Multi-user workflow is requested; policy actions and resource scopes are frozen; security review is available |
+| Institutional identity and expanded authorization | The local session scheme is stable; external identity requirements, policy actions, and resource scopes are frozen; security review and deployment-boundary evidence are available |
 | Kubernetes and air-gapped bundle | Local container profile and benchmark are reproducible; dependency/kernel/reference licensing is resolved; offline verification procedure exists |
 
 ## 14. Definition of done
@@ -1088,17 +1178,37 @@ The project may describe the MVP as implemented only when all of the following a
 - [ ] Every quantitative README or presentation claim links to a frozen run manifest.
 - [ ] No achieved runtime, throughput, low-sun, reproducibility, accuracy, or operational claim exceeds the committed evidence.
 
-## 15. First implementation actions
+## 15. Next implementation actions
 
-Begin with these actions in dependency order:
+Continue with these actions in dependency order:
 
-1. Approve this document's source precedence, MVP boundary, and verdict semantics.
-2. Create D-001 through D-010 as tracked decisions and resolve the data/control items that block evidence.
-3. Establish the repository layout, core contracts, schemas, ADRs, and CI from WP-01.
-4. Build the interim benchmark manifest and integrity/split checker from WP-00.
-5. Implement secure OHRC and TMC-2 ingestion, then complete the separate IIRS geometry and thermal/structural validation required for SIH-compliant status.
-6. Validate coordinate conventions, footprints, local GSD, and reference uncertainty before implementing novel matching.
-7. Establish classical baseline reports before adding auxiliary or learned branches.
-8. Preserve one end-to-end vertical slice as each later stage is added: ingest, preflight, match, select, refine, adjust, write, validate, and review.
+1. Reconcile proposed ADRs with the code they now govern, accepting only those
+   whose verification evidence is complete; keep D-001 through D-010 open or
+   resolved through versioned ADR/manifest evidence.
+2. Acquire and integrity-check the interim mission products and independent
+   control needed to turn the route matrix from structural coverage into real
+   benchmark inputs.
+3. Complete and independently validate OHRC/TMC-2 line-scan geometry, LRO and
+   SELENE reference/control adapters, and the separate IIRS geometry plus
+   thermal/band path before claiming any supported route.
+4. Expose the existing unqualified local registration and bundle validator as
+   an explicit CLI workflow with frozen manifests, while retaining its forced
+   `review`/fail-closed semantics.
+5. Replace the limited translation adjustment and development array bundle
+   with the observable terrain-aware adjustment, adjusted-geometry variant,
+   COG/GeoTIFF, GeoPackage/CSV, masks, metrics, and provenance outputs required
+   by WP-08 and WP-09.
+6. Freeze classical baseline reports on development data, then evaluate every
+   auxiliary channel and learned challenger through controlled ablations on
+   identical splits and masks.
+7. Connect the service to the same core only after the local CLI path is
+   reproducible; add durable runner transitions, compatible retry/resume,
+   controlled object-storage publication, match/geometry/output APIs, and
+   generated-client parity.
+8. Complete the preflight-to-review/export web workflow and its accessibility,
+   auth, graph, integration, and end-to-end evidence without adding demo
+   records or client-computed scientific facts.
+9. Freeze the route qualification, release bundle, and claim ledger before
+   changing any provisional README or presentation gate into an achieved result.
 
 This order ensures that later scientific claims inherit stable data, coordinate, provenance, and evaluation foundations instead of requiring them to be reconstructed after results exist.

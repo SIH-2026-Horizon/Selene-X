@@ -4,19 +4,59 @@
 
 SELENE-XR is Team Horizon's proposed response to Smart India Hackathon 2026 problem statement **SIH26166**. The project aims to register Chandrayaan-2 OHRC, TMC-2, and IIRS imagery against LRO and SELENE/Kaguya reference products despite large differences in illumination, spatial resolution, sensor modality, viewpoint, and terrain relief.
 
-> **Project status:** persistence-integrated development foundation. The repository now includes hardened ingestion primitives, benchmark fixtures, canonical matcher contracts, coarse phase-correlation/NCC baselines, a migration-first PostgreSQL/PostGIS service API, and a Vite/React/TypeScript/Tailwind console that reads persisted API records. The local packaged stack includes PostGIS migrations and a same-origin web proxy; it seeds no scientific records. It does **not** establish end-to-end mission-data results, performance, scientific processing, or validation. Performance and acceptance values described below remain proposed evaluation gates, not results.
+> **Project status:** implemented development foundation with an unqualified local scientific slice and a persistence-integrated operator platform. The repository includes hardened ingestion, geometry/preflight contracts, classical and learned matcher adapters, coverage selection, sub-pixel refinement, covariance, limited adjustment, fail-closed local output bundles, a PostgreSQL/PostGIS API, two graph views, session-based operator roles, and a persisted-record web console. It does **not** yet provide a validated end-to-end mission-data route, API-driven scientific execution, final COG/GeoPackage delivery, or benchmark evidence for the proposed performance gates below.
 
 SELENE-XR is an independent Team Horizon project. It is not affiliated with JAXA's SELENE/Kaguya mission.
+
+## What is implemented now
+
+| Area | Implemented foundation | Still required for the scientific MVP |
+| --- | --- | --- |
+| Data governance | Versioned schemas, interim route matrix, acquisition/integrity and leakage checks, controlled-shift fixtures, benchmark runner, and claim ledger | Integrity-checked mission products, frozen splits, independent control, and route-level reports |
+| Ingestion and geometry | Defensive PDS4/PVL parsing, raster-driver restrictions, OHRC/TMC-2/IIRS metadata adapters, local product registration, lunar coordinate types, CRS/footprint/preflight logic, SPICE inventory support, and common-resolution pyramids | Independently validated sensor models and complete LRO/SELENE image, terrain, and control adapters |
+| Registration core | Phase correlation, NCC, SIFT and RIFT-class adapters, tiled matching, robust verification, eligible-grid selection, structural/radiometric channels, shadow estimation, a dense learned adapter, ECC/Fourier refinement, covariance calibration, and a limited robust adjustment | A terrain-aware mission sensor adjustment, route-specific integration, ablations, and held-out real-data validation |
+| Local products | Deterministic unqualified local registration, stable verdict/failure contracts, provenance, checksummed atomic stage artefacts, CSV/JSON/array bundle writing, and offline bundle validation | Registered COG/GeoTIFF, adjusted geometry, GeoPackage, full masks/reports, and qualified `accept` decisions |
+| Service platform | Migration-first PostgreSQL/PostGIS storage for products, runs, stages, events, metrics, artefacts, reviews, identities, sessions, idempotency, and semantic knowledge; versioned FastAPI endpoints and cursor pagination | A runner that executes `selene_core`, upload/object-storage publication, retry/resume endpoints, scientific output browsing, and CLI/API parity |
+| Operator console | Persisted catalogue/run/review/audit views, registration provenance browsing, semantic graph exploration, login/profile/admin screens, GIS/imagery components, and reduced-motion support | Complete scientific submission/preflight/execution/export flow and end-to-end accessibility evidence |
+
+The current in-memory registration path is deliberately incapable of claiming
+a qualified result: successful synthetic plumbing remains `review`, and missing
+evidence fails closed. The web and service likewise do not create scientific
+outputs merely because a run record exists.
+
+## Knowledge and provenance graphs
+
+SELENE-XR exposes two intentionally separate graphs:
+
+- The **registration provenance graph** is a read-only projection of durable
+  subjects, products, runs, stages, artefacts, metrics, and reviews. It is
+  available from `/api/v1/registration-graphs`; the older
+  `/api/v1/knowledge-graph` path is a compatibility alias.
+- The **semantic knowledge graph** stores explicitly supplied entities and
+  directed relationships in PostgreSQL/PostGIS. Entities may carry an
+  extensible type, external identifier, JSON properties, and an optional lunar
+  point/CRS; edges carry a relation type, properties, and an optional weight.
+  `/api/v1/knowledge` supports entity and edge creation/browsing, direct
+  neighbours, bounded lexical/exact-filter queries, and crater-compatible
+  detail and observation routes.
+
+The console renders semantic results with Graphology, Sigma.js, and a
+ForceAtlas2 layout, provides a text-based record view, and exposes explicit
+pagination when a relationship expansion is incomplete. The graph is unseeded:
+the service never infers morphology, similarity, ontology facts, or
+relationships, and it does not provide vector search or a generative RAG layer.
 
 ## Current web console
 
 The isolated `web/` application provides catalog and input selection,
 registration/provenance views, persisted run lifecycle state, semantic knowledge
-graph browsing, and review routes. It calls the versioned service API and shows
-only durable PostgreSQL/PostGIS records; it never substitutes local records
-when the service is unavailable or a collection is empty. The packaged local
-stack serves it at `http://127.0.0.1:8080` and reverse-proxies `/api/v1` to the
-service so browser requests do not need CORS.
+graph browsing, review/audit routes, operator profiles, and Admin account
+management. It calls the versioned service API and shows only durable
+PostgreSQL/PostGIS records; it never substitutes local records when the service
+is unavailable or a collection is empty. The packaged local stack serves it at
+`http://127.0.0.1:8080`, uses revocable `httpOnly` server-side sessions with
+fixed `analyst`, `reviewer`, and `admin` roles, and reverse-proxies `/api/v1` to
+the service so browser requests remain same-origin.
 
 The console does not execute scientific processing or manufacture imagery,
 metrics, artifacts, tie points, knowledge entities, or graph relationships.
@@ -149,9 +189,9 @@ The scientific pipeline remains usable without the web platform. Infrastructure 
 | --- | --- |
 | `selene_core` | Dependency-light scientific types, ingestion adapters, geometry, preprocessing, matching, selection, refinement, adjustment, metrics, and product writers |
 | `selene_client` | CLI and generated or typed API client; no imports from service internals |
-| `selene_service` | FastAPI contracts, job and product domain logic, authorization hooks, persistence, and provenance |
+| `selene_service` | FastAPI contracts, product/run domain logic, session and role enforcement, PostgreSQL/PostGIS persistence, registration provenance projection, and semantic knowledge graph |
 | `selene_worker` | Thin adapters for long-running stages once distributed execution is introduced |
-| `web/` web console | Catalogue, run/provenance, semantic-knowledge, and review routes backed by persisted versioned API records |
+| `web/` web console | Authenticated catalogue, run/review/audit, registration-provenance, and semantic-knowledge routes backed by persisted versioned API records |
 
 The long-term target stack described in the specification includes Python,
 FastAPI, PostgreSQL/PostGIS, object storage, React/TypeScript, Tailwind,
@@ -173,7 +213,8 @@ validation.
 │   │                                preprocess, features, match, select, refine,
 │   │                                adjust, metrics, products, pipeline
 │   ├── selene_client/               CLI and API client
-│   ├── selene_service/              FastAPI, persistence, policy hooks
+│   ├── selene_service/              FastAPI, persistence, session auth,
+│   │                                provenance and semantic-graph APIs
 │   └── selene_worker/               optional long-stage adapters (post-MVP)
 ├── schemas/                         input, parameter, match, metric, report,
 │                                    provenance, verdict, and benchmark schemas
@@ -188,7 +229,7 @@ validation.
 ├── tests/                           unit, property, integration, science, security, e2e
 ├── infra/                           Docker, Compose, and Kubernetes model workflows
 ├── docs/
-│   ├── adr/                         ADR-0001 to ADR-0015, all currently proposed
+│   ├── adr/                         ADR-0001 to ADR-0016 and status index
 │   ├── context/                     technical verification and full specification
 │   ├── methods/                     derivations and measurement protocols
 │   ├── runbooks/                    operational procedures
@@ -199,9 +240,8 @@ validation.
 └── README.md
 ```
 
-Unimplemented scientific modules remain documented placeholders naming the work
-package that will fill them. Undefined JSON Schemas reject all instances so
-nothing can accidentally validate against a missing contract. Large mission
+Implemented scientific modules remain development components until their work
+package exit criteria and mission-route evidence are satisfied. Large mission
 products, credentials, SPICE kernels, model weights, and generated rasters are
 never committed; Git stores manifests, checksums, acquisition instructions,
 small permitted fixtures, and expected results.
