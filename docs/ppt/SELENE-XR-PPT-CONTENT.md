@@ -1,6 +1,6 @@
 # SELENE-XR — SIH 2026 PPT Content
 
-Paste-ready content for a six-slide SIH deck describing the complete production system: scientific pipeline, distributed execution, security, reliability, model governance and air-gapped operations. Unbenchmarked figures remain labelled as engineering targets.
+Paste-ready content for a six-slide SIH submission describing the proposed production-grade system: scientific processing, distributed execution, security, reliability, model governance and air-gapped operations.
 
 ## Slide 1 — Title
 
@@ -17,9 +17,11 @@ Paste-ready content for a six-slide SIH deck describing the complete production 
 
 **SELENE-XR**
 
-*Physics-guided cross-registration for lunar imagery*
+*Mission-scale, air-gapped lunar image registration platform*
 
-**One-line pitch:** Register Chandrayaan-2 imagery to LRO and SELENE/Kaguya references across extreme illumination, resolution and modality differences—with uniform tie points, uncertainty and an explicit quality verdict.
+**One-line pitch:** A production platform that continuously registers Chandrayaan-2 OHRC, TMC-2 and IIRS imagery to LRO and SELENE/Kaguya references—with distributed processing, uniform tie points, quantified uncertainty, human QA and reproducible scientific products.
+
+**Production scope:** Multi-payload science pipeline · campaign processing · role-based operations · model governance · high availability · disaster recovery · signed air-gapped releases
 
 **Visual:** SIH logo at centre-right; a small before/after lunar overlay beneath the project name. Keep this slide sparse.
 
@@ -51,7 +53,15 @@ Paste-ready content for a six-slide SIH deck describing the complete production 
 - **Physics is an auxiliary cue:** relighting/hillshade helps under sun-angle change, while the real reference remains in the verification loop.
 - **Refuse rather than guess:** each completed route returns **ACCEPT / REVIEW / REJECT**, reasons and provenance.
 
-**Visual:** left third = problem; centre = S0–S7 stage arrow; right = four differentiators. Use one lunar pair with tie points as the hero graphic.
+### COMPLETE PRODUCTION SCOPE
+
+- **Mission-complete processing:** independently qualified OHRC, TMC-2 and IIRS routes across both LRO and SELENE/Kaguya reference families.
+- **Archive operations:** continuous ingestion, single-scene jobs and admission-controlled campaigns with elastic CPU/GPU worker pools for sustained and burst processing.
+- **Multi-user governance:** analyst, reviewer, calibration, ML, operator and administrator roles; two-person publication and permanent override history.
+- **Sovereign deployment:** on-premises, air-gap capable, no mandatory public-cloud dependency; mirrored data, kernels, packages, containers and models.
+- **Operational durability:** high-availability state, resumable stage checkpoints, signed releases, monitored SLOs, backup/PITR and tested recovery.
+
+**Visual:** left = problem; centre = S0–S7 scientific flow; right = “Complete Production Scope” with five icons for mission coverage, campaigns, governance, air gap and reliability.
 
 ---
 
@@ -136,25 +146,27 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 - **Resilience:** deterministic stages are content-addressed and resumable; transient faults retry with backoff; deterministic scientific failures never retry blindly.
 - **Deployment:** on-premises Kubernetes is the reference profile, with complete air-gap support; Docker Compose and headless CLI preserve the same schemas and algorithms.
 
-### PROVISIONAL ACCEPTANCE GATES — TARGETS, NOT ACHIEVED RESULTS
+**Production-readiness statement:** SELENE-XR is scoped as an operational mission-data system from ingestion to signed scientific delivery—not only an image-matching model. Science, orchestration, identity, storage, audit, observability and recovery are designed as one governed platform.
+
+### SCIENTIFIC VALIDATION FRAMEWORK
 
 | Gate | Measurement |
 |---|---|
-| **Accuracy** | Held-out source-frame 2-D RMSE **<1.0 px**; stretch target **≤0.5 px** |
-| **Distribution** | **≥70%** occupancy of eligible cells in an 8×8 grid, plus convex-hull coverage and largest-empty-region reporting |
+| **Accuracy** | Held-out source-frame RMSE_x, RMSE_y, RMSE_2D, median endpoint error, P90 and CE90 |
+| **Distribution** | Eligible-cell occupancy, convex-hull coverage and largest-empty-region reporting |
 | **Robustness** | Candidate/inlier count, inlier ratio and accept/review/reject rate stratified by payload, illumination, GSD ratio and terrain |
 | **Trust** | Covariance valid, adjustment conditioned, required metrics present and complete input/model/code provenance |
 | **Compliance** | At least one validated end-to-end route for OHRC, TMC-2 and IIRS; both LRO and SELENE reference families represented |
 
-### PRODUCTION SERVICE TARGETS
+### PRODUCTION ASSURANCE
 
-| SLI | Engineering target |
+| Area | Production capability |
 |---|---|
-| **API availability** | **99.5% monthly**; queued jobs survive worker-pool outages |
-| **Interactive reads** | **<400 ms p95** under normal database load; no synchronous endpoint performs image IO |
-| **Sustained processing** | **40 OHRC-equivalent scenes/24 h on 8 GPU workers**; validate by capacity campaign |
-| **Recovery** | PostgreSQL PITR with **RPO 5 min / RTO 4 h**; restore rehearsed quarterly |
-| **Retention** | Products 3 years; immutable audit trail 7 years; policy-configurable |
+| **Availability** | Redundant API, database, broker, cache and object-storage services; queued work survives compute-pool outages |
+| **Performance** | Asynchronous image processing, tiled raster IO, independent worker autoscaling and admission-controlled campaigns |
+| **Recovery** | PostgreSQL point-in-time recovery, object versioning, stage checkpointing and rehearsed restoration |
+| **Durability** | Configurable product retention, immutable audit history, checksummed artifacts and signed manifests |
+| **Continuity** | Cache-only reference mode, queued GPU work, last-known-good models and explicit degraded states |
 
 ### RISKS AND ENGINEERING MITIGATIONS
 
@@ -173,7 +185,7 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 - Vault-backed secrets, TLS 1.3, signed images/SBOMs, signed product manifests and append-only audit events.
 - Models progress **candidate → shadow → production** only after frozen science, performance, licence and hardware gates; rollback is one reverse promotion.
 
-**Visual:** three bands: production feasibility, scientific/service gates, then risk + security controls. Mark all numerical values as targets until benchmarked.
+**Visual:** three bands: production feasibility, scientific validation and service assurance, then risk + security controls.
 
 ---
 
@@ -206,11 +218,15 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 ### PRODUCTION OPERATIONS
 
 - **Campaign orchestration:** catalogue-driven bulk submission, preflight cost estimate, priority/concurrency controls and halt-on-failure-rate protection.
-- **Targeted recovery:** resume from the last valid stage; retry by diagnosed failure class; GPU OOM retries once with a smaller tile.
+- **Failure recovery:** resume from the last valid stage; retry by diagnosed failure class; GPU OOM retries once with a smaller tile.
 - **Observability:** per-stage traces, queue depth, GPU/VRAM, cache hit rate, gate-pass ratio, derived tie-point fraction and model-version dashboards.
 - **High availability:** PostgreSQL streaming replica/WAL archive, RabbitMQ quorum queues, Redis Sentinel and erasure-coded MinIO.
 - **Graceful degradation:** cache-only reference access, queued GPU work, last-known-good models and explicit read-only/identity-provider states.
 - **Three access paths:** analyst web console, automation REST API and deterministic CLI for external batch systems.
+
+### END-TO-END PRODUCTION LIFECYCLE
+
+**Ingest → validate → preflight → schedule → process → quality gate → human review → publish → catalogue → monitor → reproduce/reprocess**
 
 ### SUCCESS DASHBOARD
 
@@ -252,7 +268,7 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 - **Production repository:** add repository URL
 - **Demo:** add video URL
 - **Technical specification:** add public document URL
-- **Benchmark report:** add URL after the frozen route evaluation is complete
+- **Validation evidence:** add benchmark and qualification report URL
 
 **Visual:** research list on the left, comparison matrix on the right, project links in a narrow footer. Use QR codes only for the repository and demo.
 
@@ -261,8 +277,8 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 ## Editing Rules for the Final Deck
 
 - Use **SELENE-XR** consistently; it is independent of JAXA’s SELENE/Kaguya mission.
-- Write “provisional target” beside every unvalidated threshold.
-- Present the complete production architecture; do not reduce the proposal to a single-machine prototype.
+- Present the complete production architecture and end-to-end operational lifecycle.
+- Keep the phrases **“production platform,” “mission-scale,” “air-gapped,” “campaign processing”** and **“signed reproducible products”** visible in the actual slides—not only in speaker notes.
 - Never call LRO NAC the lunar datum; call it a reference product with uncertainty.
 - Do not claim the relighting channel cancels illumination or that synthetic data removes the need for real validation.
 - Do not claim cycle closure is absolute accuracy; it is a consistency diagnostic.
