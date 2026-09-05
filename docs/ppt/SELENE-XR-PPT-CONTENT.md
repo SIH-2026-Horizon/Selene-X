@@ -61,7 +61,7 @@ Paste-ready content for a six-slide SIH submission describing the proposed produ
 - **Sovereign deployment:** on-premises, air-gap capable, no mandatory public-cloud dependency; mirrored data, kernels, packages, containers and models.
 - **Operational durability:** high-availability state, resumable stage checkpoints, signed releases, monitored SLOs, backup/PITR and tested recovery.
 
-**Visual:** left = problem; centre = S0–S7 scientific flow; right = “Complete Production Scope” with five icons for mission coverage, campaigns, governance, air gap and reliability.
+**Visual:** left = problem; centre = S0–S6 scientific flow; right = “Complete Production Scope” with five icons for mission coverage, campaigns, governance, air gap and reliability.
 
 ---
 
@@ -84,9 +84,8 @@ S4  VERIFY + SELECT — robust geometry, NMS, eligibility mask, grid/quadtree co
                               ↓
 S5  SUB-PIXEL REFINE — ECC/Fourier shift + bias correction + anisotropic covariance
                               ↓
-S6  ADJUST — Ceres pushbroom/terrain solve + robust loss + platform-jitter spline
-                              ↓
-S7  GRAPH + GATE — multi-scene adjustment, cycle diagnostics, uncertainty, verdict
+S6  ADJUST + GRAPH + GATE — Ceres pushbroom/terrain solve, jitter, scene graph,
+                            cycle diagnostics, uncertainty and verdict
                               ↓
 Registered COG/Zarr + adjusted model + GeoPackage tie points + metrics + provenance
 ```
@@ -98,6 +97,13 @@ Registered COG/Zarr + adjusted model + GeoPackage tie points + metrics + provena
 | **OHRC** | Panchromatic high-resolution tiles; pushbroom geometry; local-GSD model; terrain-aware residual field |
 | **TMC-2** | Panchromatic fore/nadir/aft route; stereo-aware geometry; bridge route for lower-resolution products |
 | **IIRS** | Label-driven reflective-band selection, thermal correction, PCA/gradient/phase/self-similarity composite; independently validated geometry |
+
+### CORRESPONDENCE AND SOLVE CONTRACT
+
+- Each tie point stores source/reference pixel coordinates, lunar ground estimate, matcher/channel origin, confidence, inlier state, local-warp Jacobian and a 2×2 covariance matrix.
+- Verification combines the metadata displacement prior, forward/backward agreement, robust local geometry and neighbourhood consistency before coverage selection.
+- The adjustment solves camera/line-state corrections and terrain intersection jointly under robust loss; withheld points, residual structure and covariance conditioning drive the final verdict.
+- Cross-sensor residuals are transformed through the local Jacobian before comparison, preserving correct units across different GSDs.
 
 ### TRAINING AND CONTINUOUS CALIBRATION
 
@@ -119,7 +125,7 @@ FastAPI modular monolith ───────── PostgreSQL 16 + PostGIS 3.4
             ├── MinIO/S3 ──────────────── COG, Zarr, models, artifacts, manifests
             └── MLflow + DVC ──────────── experiments, corpora, model promotion
 
-Workers execute resumable S0→S7 stages with content-addressed checkpoints.
+Workers execute resumable S0→S6 stages with content-addressed checkpoints.
 OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observability.
 ```
 
@@ -157,6 +163,26 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 | **Robustness** | Candidate/inlier count, inlier ratio and accept/review/reject rate stratified by payload, illumination, GSD ratio and terrain |
 | **Trust** | Covariance valid, adjustment conditioned, required metrics present and complete input/model/code provenance |
 | **Compliance** | At least one validated end-to-end route for OHRC, TMC-2 and IIRS; both LRO and SELENE reference families represented |
+
+### EVIDENCE STRATEGY
+
+- **Synthetic truth:** exact dense flow for controlled illumination, scale, geometry and sensor degradation.
+- **Held-out real scenes:** independently reviewed check points across payload, reference, sun-angle, relief and GSD strata.
+- **Leave-one-out validation:** detects over-fitting of the adjustment to selected tie points.
+- **Graph diagnostics:** forward/backward and cycle closure expose inconsistent registration paths while remaining separate from absolute control accuracy.
+
+### REQUIREMENT-TO-EVIDENCE TRACEABILITY
+
+| Problem / requirement | Pipeline response | Evidence and gate | Published outcome |
+|---|---|---|---|
+| Sun-angle and shadow reversal | S2 physical render + S3 real/render/structural channels | Illumination-stratified holdout + render/channel ablation | Registered overlay that remains tied to the real reference |
+| 1:320-class scale gap | S0 metadata prior + S1 local-GSD/PSF pyramids | GSD-stratified endpoint error, CE90 and route-success rate | Scale-normalized, verified correspondences |
+| OHRC/TMC-2/IIRS modality gap | Payload-specific S1/S3 representations and independently qualified routes | Per-payload × reference-family benchmark matrix | Comparable registered products for all required payloads |
+| Pushbroom, terrain and jitter distortion | S6 line-scan/terrain adjustment + jitter spline | Withheld-point error, residual structure and conditioning | Adjusted sensor/model state with uncertainty |
+| Clustered or locally convincing matches | S4 eligibility mask + grid/quadtree selection | Cell occupancy, hull coverage and largest empty region | Spatially useful tie-point catalogue |
+| Scientific trust and repeatability | S5 covariance + S6 graph/gate + signed manifest | Calibration, provenance-completeness and replay checks | ACCEPT / REVIEW / REJECT product with reproducible evidence |
+
+This matrix closes the loop from each stated challenge to the responsible stage, the measurement that validates it and the exact scientific product delivered.
 
 ### PRODUCTION ASSURANCE
 
@@ -200,6 +226,8 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 - Signed/checksummed manifest with inputs, reference versions, parameters, model and code release.
 - Explicit **ACCEPT / REVIEW / REJECT** verdict with actionable failure reasons.
 
+Every published object is bound to a manifest containing the source checksum, reference/control versions, SPICE kernel inventory, parameter set, model IDs, code revision, container digest and stage-artifact hash chain.
+
 ### USERS AND DOWNSTREAM WORKFLOWS
 
 - **Planetary scientists:** reliable multi-mission overlays and traceable tie points.
@@ -240,16 +268,51 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 
 ### PRIMARY TECHNICAL REFERENCES
 
-1. [ISRO — Chandrayaan-2 payload overview](https://www.isro.gov.in/ISRO_EN/Chandrayaan2_science.html) and OHRC, TMC-2 and IIRS instrument papers.
-2. [USGS Astrogeology — Chandrayaan-2 processing guidance](https://astrogeology.usgs.gov/docs/concepts/missions/chandrayaan2/); ISIS/ALE/usgscsm sensor-model route.
-3. [NASA NAIF — SPICE](https://naif.jpl.nasa.gov/naif/) geometry and kernel system.
-4. [LROC NAC processing](https://lroc.im-ldi.com/data/support/downloads/LROC_NAC_Processing_Guide.pdf) and [SELENE/Kaguya Terrain Camera](https://www.kaguya.jaxa.jp/en/equipment/tc_e.htm) specifications.
-5. [Ye et al. — simulated-hillshade/photometric lunar image–DEM co-registration](https://doi.org/10.1016/j.isprsjprs.2018.06.016), ISPRS JPRS (2018).
-6. [Sun et al. — **LoFTR: Detector-Free Local Feature Matching with Transformers**](https://openaccess.thecvf.com/content/CVPR2021/html/Sun_LoFTR_Detector-Free_Local_Feature_Matching_With_Transformers_CVPR_2021_paper.html), CVPR 2021.
-7. [Edstedt et al. — **RoMa: Robust Dense Feature Matching**](https://openaccess.thecvf.com/content/CVPR2024/html/Edstedt_RoMa_Robust_Dense_Feature_Matching_CVPR_2024_paper.html), CVPR 2024.
-8. [Li et al. — **RIFT: Radiation-Variation Insensitive Feature Transform**](https://doi.org/10.1109/TIP.2019.2959244), IEEE TIP 2020.
+1. [ISRO — Chandrayaan-2 payload overview](https://www.isro.gov.in/ISRO_EN/Chandrayaan2_science.html).
+2. [Current Science — **OHRC instrument design and performance**](https://www.currentscience.ac.in/Volumes/118/04/0560.pdf), 2020.
+3. [Current Science — **TMC-2 instrument design and performance**](https://www.currentscience.ac.in/Volumes/118/04/0566.pdf), 2020.
+4. [Current Science — **IIRS instrument and science capability**](https://www.currentscience.ac.in/Volumes/118/03/0368.pdf), 2020.
+5. [NASA PDS — **PDS4 Information Model Specification**](https://pds.nasa.gov/datastandards/documents/im/current/index_1L00.html) and [USGS Chandrayaan-2 processing guidance](https://astrogeology.usgs.gov/docs/concepts/missions/chandrayaan2/).
+6. [Laura, Mapel & Hare — **Planetary sensor-model interoperability using CSM**](https://doi.org/10.1029/2019EA000713), Earth and Space Science 2020.
+7. [NASA NAIF — **SPICE**](https://naif.jpl.nasa.gov/naif/) geometry and kernel system.
+8. [LROC NAC processing guide](https://lroc.im-ldi.com/data/support/downloads/LROC_NAC_Processing_Guide.pdf) and [JAXA SELENE Terrain Camera](https://www.kaguya.jaxa.jp/en/equipment/tc_e.htm) specifications.
+9. [Hapke et al. — **Photometric studies of complex surfaces, with applications to the Moon**](https://doi.org/10.1029/JZ068i015p04545), JGR 1963.
+10. [Ye et al. — **Simulated-hillshade lunar image–DEM co-registration**](https://doi.org/10.1016/j.isprsjprs.2018.06.016), ISPRS JPRS 2018.
+11. [LoFTR](https://openaccess.thecvf.com/content/CVPR2021/html/Sun_LoFTR_Detector-Free_Local_Feature_Matching_With_Transformers_CVPR_2021_paper.html), [RoMa](https://openaccess.thecvf.com/content/CVPR2024/html/Edstedt_RoMa_Robust_Dense_Feature_Matching_CVPR_2024_paper.html) and [RIFT](https://doi.org/10.1109/TIP.2019.2959244) — detector-free, dense and multimodal correspondence baselines.
+12. [NASA Ames Stereo Pipeline](https://stereopipeline.readthedocs.io/en/stable/introduction.html) and [Ceres Solver bundle adjustment](https://ceres-solver.readthedocs.io/latest/nnls_tutorial.html) documentation.
+13. [OGC Cloud Optimized GeoTIFF 1.0](https://www.ogc.org/standards/ogc-cloud-optimized-geotiff/) — interoperable tiled raster delivery.
+14. [USGS ISIS](https://isis.astrogeology.usgs.gov/) — calibrated planetary-image processing, camera models and map projection.
+15. [NASA SLDEM2015](https://pgda.gsfc.nasa.gov/products/54) and LOLA-derived elevation products — terrain support and independent control context.
 
-### POSITIONING AGAINST BASELINES
+### BENCHMARK AND ABLATION DESIGN
+
+| Benchmark layer | Dataset design | Reported measures | What it proves |
+|---|---|---|---|
+| **Controlled correspondence** | Synthetic lunar pairs with exact flow; varied sun/view geometry, GSD, PSF, noise and sensor perturbation | Endpoint error, P90/CE90, calibration error, failure rate | Numerical correctness and sensitivity boundaries |
+| **Real cross-mission routes** | Frozen OHRC/TMC-2/IIRS × LRO/SELENE pairs stratified by illumination, relief, overlap and GSD ratio | Source-frame RMSE, inlier ratio, route success, coverage | Real-data robustness for every required route |
+| **Independent control** | Withheld expert check points and higher-accuracy LOLA/GCP control where available | Relative pixel error and absolute horizontal error with reference uncertainty | External accuracy rather than fit-to-tie-points |
+| **Coverage quality** | Eligible overlap divided into grid/quadtree cells | Occupancy, convex-hull ratio, largest empty region | Matches support the whole image, not one feature cluster |
+| **Ablation campaign** | Remove render, PSF matching, structural channels, coverage selection, bias correction and jitter terms one at a time | Metric delta by scene stratum | Which component produces each gain |
+| **Production campaign** | Continuous mixed-payload queue with injected worker/storage/model failures | Stage latency, throughput, cache reuse, retry/recovery, gate stability | Operational scalability and graceful recovery |
+
+### EXISTING SOLUTIONS AND SELENE-XR ADVANTAGE
+
+| Existing approach | Primary strength | Remaining gap for SIH26166 | SELENE-XR advantage |
+|---|---|---|---|
+| **USGS ISIS + Ames Stereo Pipeline** | Mature planetary calibration, camera models, stereo, bundle adjustment and jitter tools | General planetary workflow; cross-modal, extreme-illumination correspondence still needs route-specific representations and gates | Adds payload-aware matching, physical/structural channels, uniform tie-point selection and an operator production layer |
+| **SIFT/NCC/phase correlation** | Transparent, reproducible and efficient baseline | Feature repeatability degrades across shadow reversal, large GSD gaps and hyperspectral-to-panchromatic pairs | Fuses metadata-bounded pyramids, multiple representations and robust verification while retaining these as fallbacks |
+| **RIFT and multimodal descriptors** | Structural features improve radiation/modality robustness | Does not by itself solve pushbroom geometry, reference uncertainty, spatial coverage or production delivery | Couples multimodal features to SPICE/CSM geometry, covariance and terrain-aware adjustment |
+| **LoFTR / RoMa** | Dense detector-free correspondence and strong learned matching | Generic image matching has no lunar photometric model, payload routing, quality verdict or archive provenance | Uses learned matching as one challenger inside a physics-guided, fail-closed scientific system |
+| **Image–DEM relighting methods** | Reduce illumination mismatch using terrain and simulated shading | Accuracy is limited by DTM/albedo quality and absent fine texture; usually pairwise research workflows | Keeps the real reference in verification, fuses structural channels and propagates terrain/reference uncertainty |
+
+### WHY SELENE-XR IS STRONGER AS A SYSTEM
+
+- **End-to-end requirement coverage:** all three Chandrayaan-2 payloads, both named reference families, registered products, tie points and evaluation evidence.
+- **Multiple independent hypotheses:** geometry, real imagery, physical rendering, structural features, classical matching and learned matching can corroborate or reject one another.
+- **Uncertainty is part of the product:** covariance, reference error, residual structure and coverage determine the verdict; confidence is not treated as accuracy.
+- **Production continuity:** resumable stages, content-addressed caches, model rollback, signed manifests and air-gapped campaign operation.
+
+### CAPABILITY SUMMARY
 
 | Capability | SIFT/NCC only | Detector-free only | SELENE-XR |
 |---|:---:|:---:|:---:|
@@ -263,14 +326,13 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 | Distributed resumable execution | Manual scripts | Model service only | **Stage checkpoints + independent worker pools** |
 | Air-gapped production deployment | Ad hoc | Model-dependent | **Signed Kubernetes/Compose/CLI profiles** |
 
-### PROJECT RESOURCES
+### TECHNICAL EVIDENCE PACK
 
-- **Production repository:** add repository URL
-- **Demo:** add video URL
-- **Technical specification:** add public document URL
-- **Validation evidence:** add benchmark and qualification report URL
+- [Complete technical specification](../context/SELENE-XR-Complete-Technical-Specification.md) — requirements, scientific pipeline, data contracts and production architecture.
+- [Technical verification](../context/SELENE-XR-Technical-Verification.md) — challenge interpretation, instrument facts, corrections and metric definitions.
+- [Architecture-decision index](../adr/README.md) — versioned decisions for coordinates, reference authority, matching, coverage, adjustment, verdicts, lifecycle, security and roles.
 
-**Visual:** research list on the left, comparison matrix on the right, project links in a narrow footer. Use QR codes only for the repository and demo.
+**Visual:** use a two-column reference block across the top; place the benchmark table and existing-solution comparison below it. If space is tight, move the detailed benchmark table to an appendix slide and retain its six benchmark-layer labels on Slide 6.
 
 ---
 
@@ -282,4 +344,4 @@ OpenTelemetry → Prometheus/Grafana + Loki/Tempo provides end-to-end observabil
 - Never call LRO NAC the lunar datum; call it a reference product with uncertainty.
 - Do not claim the relighting channel cancels illumination or that synthetic data removes the need for real validation.
 - Do not claim cycle closure is absolute accuracy; it is a consistency diagnostic.
-- Replace every placeholder link before submission.
+- The project repository is private. Add its URL or QR to the submitted deck only after public visibility or judge access has been verified; apply the same rule to any demo or evidence URL.
